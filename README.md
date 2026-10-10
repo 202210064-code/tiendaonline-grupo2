@@ -405,6 +405,88 @@ Internet -> RDS : 5432                        BLOQUEADO 🔒
 
 Demuestra que **solo el ALB** llega a las EC2 y **solo las EC2** llegan a la base de datos. El detalle visual de cada ruta está en **VPC → Reachability Analyzer** (~0,10 USD por análisis).
 
+### 🧩 AWS SDK for .NET: la tienda usa AWS desde su código
+
+**¿Qué es?** Una librería que permite que **la aplicación** (no una persona) use los servicios de AWS desde el código C#.
+
+| Herramienta | Quién la usa | Ejemplo en este curso |
+|---|---|---|
+| Consola web | Una persona, con clics | Abrir el dashboard de CloudWatch |
+| AWS CLI | Una persona o un script, con comandos | `aws cloudformation deploy ...` |
+| **AWS SDK** | **La aplicación, desde su código** | La tienda envía a CloudWatch *"se creó un pedido de S/ 3.799"* |
+
+**¿Qué usa la tienda del SDK?**
+
+| Paquete NuGet | Servicio | Para qué lo usa la tienda | Estado |
+|---|---|---|---|
+| `AWSSDK.CloudWatch` | **Amazon CloudWatch** | En cada compra publica las métricas **`OrdersCreated`** (pedidos) y **`OrderAmount`** (ventas S/) → panel *"Tienda (AWS SDK): pedidos y ventas S/"* del dashboard | ✅ En uso |
+| `AWSSDK.S3` | **Amazon S3** | El **Worker** lee el CSV nocturno de proveedores (`GetObject`) para actualizar el catálogo | ⚠️ El Worker aún no compila (pendiente) |
+| `AWSSDK.SecretsManager` | **AWS Secrets Manager** | Leer la contraseña de RDS de forma segura (en vez de un archivo en la EC2) | ⏳ Registrado, aún sin usar |
+| `AWSSDK.Extensions.NETCore.Setup` | — | Conecta el SDK con ASP.NET Core: región y credenciales automáticas | ✅ En uso |
+
+#### El código, paso a paso
+
+**1. Instalar la librería** — [`TiendaOnline.csproj`](TiendaOnline.csproj) (la descarga `dotnet restore`):
+
+```xml
+<PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.400" />
+<PackageReference Include="AWSSDK.CloudWatch" Version="3.7.401" />
+```
+
+**2. Registrar el cliente de CloudWatch** — [`Program.cs`](Program.cs):
+
+```csharp
+builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions()); // región + credenciales
+builder.Services.AddAWSService<IAmazonCloudWatch>();                          // cliente de CloudWatch
+builder.Services.AddScoped<BusinessMetrics>();                                // nuestro servicio
+```
+
+**3. Llamar a AWS** — [`Services/BusinessMetrics.cs`](Services/BusinessMetrics.cs):
+
+```csharp
+public class BusinessMetrics(IAmazonCloudWatch cloudWatch, IConfiguration config, ILogger<BusinessMetrics> log) {
+ public async Task OrderCreatedAsync(decimal amount, CancellationToken ct = default) {
+  if (!config.GetValue("Metrics:CloudWatchEnabled", false)) return;   // en tu PC queda apagado
+  try {
+   await cloudWatch.PutMetricDataAsync(new PutMetricDataRequest {      // ← la llamada a AWS
+    Namespace = "URPOnline",
+    MetricData = new List<MetricDatum> {
+     new() { MetricName = "OrdersCreated", Value = 1, Unit = StandardUnit.Count },
+     new() { MetricName = "OrderAmount", Value = (double)amount, Unit = StandardUnit.None }
+    }
+   }, ct);
+  } catch (Exception ex) when (ex is not OperationCanceledException) {
+   log.LogWarning(ex, "No se pudo publicar la métrica del pedido en CloudWatch"); // la venta ya está en RDS
+  }
+ }
+}
+```
+
+**4. Usarlo al comprar** — [`Controllers/CheckoutController.cs`](Controllers/CheckoutController.cs), justo después de guardar el pedido en RDS:
+
+```csharp
+await metrics.OrderCreatedAsync(order.Total, HttpContext.RequestAborted);
+```
+
+#### ¿Y las credenciales? (no hay claves en el código)
+
+| Dónde corre | De dónde saca los permisos el SDK |
+|---|---|
+| **EC2 en AWS** | Del **rol IAM** que crea el YAML: [`infra/urponline-oneclick.yaml`](infra/urponline-oneclick.yaml) le da `CloudWatchAgentServerPolicy` (incluye `cloudwatch:PutMetricData`) y activa las métricas con `Metrics__CloudWatchEnabled=true` y `AWS__Region` |
+| **Tu PC** | De `aws configure` (`%USERPROFILE%\.aws\credentials`). Para probarlo: `$env:Metrics__CloudWatchEnabled="true"; $env:AWS__Region="us-east-2"; dotnet run --urls http://localhost:8080` |
+
+#### Comprobar que funciona
+
+1. Haz 2 o 3 compras en la tienda.
+2. Dashboard → panel **"Tienda (AWS SDK): pedidos y ventas S/"** (pulsa ⟳ tras 1-2 min).
+3. O con la CLI:
+
+```bash
+aws cloudwatch get-metric-statistics --namespace URPOnline --metric-name OrdersCreated \
+  --start-time $(date -u -d '-1 hour' +%FT%TZ) --end-time $(date -u +%FT%TZ) \
+  --period 3600 --statistics Sum --region us-east-2
+```
+
 ### Borrar todo (¡obligatorio al terminar!)
 
 - **Con GitHub Actions:** pestaña **Actions → Destruir AWS → Run workflow** → escribe `DESTRUIR`.
