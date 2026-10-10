@@ -92,7 +92,7 @@ Archivos importantes:
 |---|---|
 | `Program.cs`, `Controllers/`, `Views/`, `Models/`, `Data/`, `Services/` | La tienda web: ASP.NET Core MVC con EF Core, PostgreSQL y Redis |
 | `Worker/` | Programa de consola que importa el catálogo de proveedores desde CSV, local o S3 |
-| `URPOnline_ClaudeCode_Deploy/urponline-oneclick.yaml` | **La plantilla de CloudFormation que vas a desplegar** |
+| `infra/urponline-oneclick.yaml` | **La plantilla de CloudFormation que vas a desplegar** |
 | `URPOnline_ClaudeCode_Deploy/DEPLOY.md` | Guía original de despliegue y advertencias |
 | `URPOnline_ClaudeCode_Deploy/SPEC.md`, `CLAUDE.md` | Especificación completa (F01–F10) y reglas para trabajar con Claude Code |
 | `scripts/` | Ejemplos de Nginx, systemd, PgBouncer y temporizador del Worker |
@@ -193,10 +193,10 @@ aws s3 ls "s3://$BUCKET/releases/"
 ### 7.1 Validar la plantilla
 
 ```powershell
-aws cloudformation validate-template --template-body file://URPOnline_ClaudeCode_Deploy/urponline-oneclick.yaml --region $REGION
+aws cloudformation validate-template --template-body file://infra/urponline-oneclick.yaml --region $REGION
 ```
 
-Opcional, para encontrar errores antes de crear nada: `pip install cfn-lint` y luego `cfn-lint URPOnline_ClaudeCode_Deploy/urponline-oneclick.yaml`.
+Opcional, para encontrar errores antes de crear nada: `pip install cfn-lint` y luego `cfn-lint infra/urponline-oneclick.yaml`.
 
 ### 7.2 Crear la pila
 
@@ -217,7 +217,7 @@ Opcional, para encontrar errores antes de crear nada: `pip install cfn-lint` y l
 ```powershell
 aws cloudformation deploy `
   --stack-name URPOnlineLab `
-  --template-file URPOnline_ClaudeCode_Deploy/urponline-oneclick.yaml `
+  --template-file infra/urponline-oneclick.yaml `
   --capabilities CAPABILITY_IAM `
   --region $REGION `
   --parameter-overrides ArtifactBucket=$BUCKET ArtifactKey=releases/urponline-publish.zip DBPassword=TuClaveSegura2026 EnableMultiAZ=false

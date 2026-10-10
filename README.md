@@ -1,4 +1,4 @@
-CL# URPOnline — Laboratorio AWS (TiendaOnline .NET)
+# URPOnline — Laboratorio AWS (TiendaOnline .NET)
 
 ## 👉 Empieza aquí
 
@@ -74,7 +74,13 @@ Debe mostrar tu `Account` (12 dígitos) y tu `Arn`. 🔒 **Nunca pegues la Acces
 
 ## ☁️ Desplegar la tienda en AWS
 
-Toda la arquitectura está escrita en un archivo **YAML de CloudFormation**: [`infra/urponline-oneclick.yaml`](infra/urponline-oneclick.yaml). AWS lee ese archivo y crea **todo**:
+> 📄 **Archivos de CloudFormation (carpeta `infra/`):**
+> - [`infra/urponline-oneclick.yaml`](infra/urponline-oneclick.yaml) → **la tienda completa en AWS** (este es el que despliegas).
+> - [`infra/github-oidc.yaml`](infra/github-oidc.yaml) → conexión GitHub Actions → AWS sin Access Keys (solo para la opción B).
+>
+> Si ves otra copia de `urponline-oneclick.yaml` en otra carpeta o en un ZIP del curso, **no la uses**: es una versión anterior.
+
+Toda la arquitectura está escrita en ese archivo **YAML de CloudFormation**. AWS lee el archivo y crea **todo**:
 
 | Capa | Recursos que crea el YAML |
 |---|---|
@@ -165,8 +171,6 @@ En la carpeta [`.github/workflows/`](.github/workflows/) hay 3 workflows que eje
    ```
    Copia el valor que empieza con `arn:aws:iam::...:role/urponline-github-deploy-tiendaonline`.
    > Si da error *"Provider with url ... already exists"*, añade `CreateOidcProvider=false` a `--parameter-overrides`.
-
-   **Sin terminal (desde la consola de AWS):** CloudFormation → **Create stack** → *With new resources* → **Upload a template file** → elige `infra/github-oidc.yaml` de tu carpeta → nombre `urponline-github-oidc` → en `GitHubOwner` escribe tu usuario de GitHub → marca la casilla *"I acknowledge that AWS CloudFormation might create IAM resources with custom names"* → **Submit**. Cuando diga `CREATE_COMPLETE`, pestaña **Outputs** → copia `RoleArn`.
 3. **Guarda 2 secretos en tu fork:** GitHub → tu repo → **Settings → Secrets and variables → Actions → New repository secret**:
    | Nombre | Valor |
    |---|---|
