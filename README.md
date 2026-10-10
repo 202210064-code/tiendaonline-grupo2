@@ -72,6 +72,118 @@ Debe mostrar tu `Account` (12 dígitos) y tu `Arn`. 🔒 **Nunca pegues la Acces
 
 ---
 
+## ☁️ Desplegar la tienda en AWS
+
+Toda la arquitectura está escrita en un archivo **YAML de CloudFormation**: [`infra/urponline-oneclick.yaml`](infra/urponline-oneclick.yaml). AWS lee ese archivo y crea **todo**:
+
+| Capa | Recursos que crea el YAML |
+|---|---|
+| Red | VPC `10.0.0.0/16`, subredes **públicas** (ALB, NAT), **de aplicación** (EC2) y **de datos** (RDS, Redis) en 2 zonas, IGW, 2 NAT, tablas de rutas, security groups |
+| Entrada | **ALB** público en el puerto 80 |
+| Aplicación | **Launch Template + Auto Scaling** (2 EC2 privadas con Nginx → Kestrel) |
+| Datos | **RDS PostgreSQL 16** (con pgvector), **ElastiCache Redis** (sesiones, TLS), **S3** de proveedores |
+| Seguridad | **Rol IAM** para las EC2 (S3 + Session Manager, sin claves) |
+
+Hay dos formas de desplegar. **Haz primero la A** (para entender cada paso); después automatiza con la B.
+
+> ⚠️ **Cuesta dinero mientras exista** (NAT, ALB, EC2, RDS, Redis). Al terminar la clase **bórrala** (ver "Borrar todo" al final de esta sección).
+
+### A) A mano con la AWS CLI
+
+Requisito: haber hecho **"Conectar tu equipo a tu cuenta de AWS"** (arriba). Ejecuta en la terminal de VS Code, desde la carpeta del proyecto:
+
+```powershell
+# 0. Variables (cambia la contraseña: 12+ caracteres, solo letras y números)
+$REGION = "us-east-2"
+$STACK  = "URPOnlineLab"
+$DBPASS = "CambiaEstaClave2026"
+$ACCOUNT = aws sts get-caller-identity --query Account --output text
+$BUCKET = "urponline-artefactos-$ACCOUNT-$REGION"
+
+# 1. Compilar para Linux (las EC2 usan Amazon Linux) e incluir el modelo de búsqueda
+powershell -ExecutionPolicy Bypass -File scripts/descargar-modelo.ps1
+dotnet publish TiendaOnline.csproj -c Release -r linux-x64 --self-contained false -o out
+Compress-Archive -Path out\* -DestinationPath urponline-publish.zip -Force
+
+# 2. Subir el ZIP a S3 (las EC2 lo descargan al arrancar)
+aws s3 mb "s3://$BUCKET" --region $REGION
+aws s3 cp urponline-publish.zip "s3://$BUCKET/releases/urponline-v1.zip"
+
+# 3. Validar el YAML y crear la pila (15-30 min)
+aws cloudformation validate-template --template-body file://infra/urponline-oneclick.yaml
+aws cloudformation deploy --stack-name $STACK --region $REGION `
+  --template-file infra/urponline-oneclick.yaml --capabilities CAPABILITY_IAM `
+  --parameter-overrides ArtifactBucket=$BUCKET ArtifactKey=releases/urponline-v1.zip DBPassword=$DBPASS EnableMultiAZ=false
+
+# 4. Ver el resultado
+aws cloudformation describe-stacks --stack-name $STACK --region $REGION --query "Stacks[0].Outputs" --output table
+```
+
+Mientras se crea, míralo en la consola: **CloudFormation → URPOnlineLab → pestaña Events** (cada recurso aparece al crearse).
+
+**Comprobar que funciona en AWS:**
+
+```powershell
+$URL = aws cloudformation describe-stacks --stack-name $STACK --region $REGION --query "Stacks[0].Outputs[?OutputKey=='ApplicationHTTP'].OutputValue" --output text
+$TG  = aws cloudformation describe-stacks --stack-name $STACK --region $REGION --query "Stacks[0].Outputs[?OutputKey=='TargetGroupArn'].OutputValue" --output text
+
+curl.exe "$URL/health"                                         # {"status":"ok"}
+aws elbv2 describe-target-health --target-group-arn $TG --region $REGION --output table   # 2 EC2 "healthy"
+1..6 | % { (curl.exe -s $URL) -match 'Servido por: <b>([^<]*)' | Out-Null; $Matches[1] }   # el ALB reparte entre las 2 EC2
+start $URL                                                      # abre la tienda; busca "tomar fotos" (pgvector en RDS)
+```
+
+El pie de cada página dice **"Servido por: ip-10-0-11-x"** o **"ip-10-0-12-x"**: es la EC2 que te atendió. Recarga y verás el balanceo del ALB, y el carrito se mantiene porque la sesión vive en **ElastiCache**.
+
+**Publicar una versión nueva:** repite el paso 1 y 2 con otro nombre (`urponline-v2.zip`) y el paso 3 con `ArtifactKey=releases/urponline-v2.zip`. CloudFormation reemplaza las EC2 **de una en una** sin tumbar la tienda.
+
+### B) Automático con GitHub Actions (cada push despliega)
+
+En la carpeta [`.github/workflows/`](.github/workflows/) hay 3 workflows que ejecutan **los mismos comandos** de la opción A:
+
+| Workflow | Cuándo corre | Qué hace |
+|---|---|---|
+| `ci.yml` — *CI - compilar y validar* | Cada push y pull request | Compila y valida los YAML con `cfn-lint` (no usa AWS) |
+| `deploy-aws.yml` — *Desplegar en AWS* | Cada push a `main` (y manual) | Compila, sube el ZIP a S3, `cloudformation deploy`, prueba `/health` en el ALB |
+| `destroy-aws.yml` — *Destruir AWS* | Solo manual, escribiendo `DESTRUIR` | Borra la pila para dejar de pagar |
+
+**Configúralo en TU GitHub (una sola vez):**
+
+1. **Haz un fork:** en https://github.com/jjjfrancia/tiendaonline pulsa **Fork** → se crea `https://github.com/TU_USUARIO/tiendaonline`.
+2. **Conecta GitHub con tu AWS sin Access Keys (OIDC).** Desde la carpeta del proyecto:
+   ```powershell
+   aws cloudformation deploy --stack-name urponline-github-oidc --region us-east-2 `
+     --template-file infra/github-oidc.yaml --capabilities CAPABILITY_NAMED_IAM `
+     --parameter-overrides GitHubOwner=TU_USUARIO RepoName=tiendaonline
+   aws cloudformation describe-stacks --stack-name urponline-github-oidc --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text
+   ```
+   Copia el valor que empieza con `arn:aws:iam::...:role/urponline-github-deploy-tiendaonline`.
+   > Si da error *"Provider with url ... already exists"*, añade `CreateOidcProvider=false` a `--parameter-overrides`.
+3. **Guarda 2 secretos en tu fork:** GitHub → tu repo → **Settings → Secrets and variables → Actions → New repository secret**:
+   | Nombre | Valor |
+   |---|---|
+   | `AWS_ROLE_ARN` | el ARN del paso 2 |
+   | `DB_PASSWORD` | contraseña de RDS (12+ caracteres, solo letras y números) |
+
+   Opcional, en la pestaña **Variables**: `AWS_REGION` = `us-east-1` si no usas Ohio.
+4. **Activa Actions en tu fork:** pestaña **Actions** → *"I understand my workflows, go ahead and enable them"*.
+5. **Despliega:** haz un cambio (por ejemplo, un texto en `Views/Home/Index.cshtml`), `git commit` y `git push`. En la pestaña **Actions** verás *Desplegar en AWS* corriendo paso a paso; al final, el **resumen** muestra la **URL de la tienda** y las EC2 *healthy*. (También puedes lanzarlo con **Run workflow**.)
+
+**¿Por qué OIDC y no Access Keys?** GitHub pide a AWS credenciales **temporales** en cada ejecución; el rol solo acepta la rama `main` de **tu** repositorio. No hay claves guardadas que se puedan filtrar.
+
+### Borrar todo (¡obligatorio al terminar!)
+
+- **Con GitHub Actions:** pestaña **Actions → Destruir AWS → Run workflow** → escribe `DESTRUIR`.
+- **Con la CLI:**
+  ```powershell
+  aws cloudformation delete-stack --stack-name URPOnlineLab --region us-east-2
+  aws cloudformation wait stack-delete-complete --stack-name URPOnlineLab --region us-east-2
+  ```
+  Si falla por el bucket de proveedores, vacíalo en la consola (S3 → bucket → **Empty**) y repite.
+- Después: borra el **snapshot final de RDS** (RDS → Snapshots) y el bucket de artefactos (`aws s3 rb s3://$BUCKET --force`). Revisa **Billing** al día siguiente.
+
+---
+
 ## 🚀 Descargar y correr la tienda en tu equipo
 
 Requisitos: **.NET 8 SDK**, **Docker Desktop** abierto y **Git**. Cómo instalarlos: [CONFIGURACION_VSCODE.md](CONFIGURACION_VSCODE.md).

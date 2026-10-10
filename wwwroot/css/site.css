@@ -157,3 +157,4 @@ footer{margin-top:30px;background:var(--subnav);color:#ddd;text-align:center;fon
 .row-btn{width:auto;display:inline-block;padding:8px 40px}
 @media(max-width:850px){.search-layout{grid-template-columns:1fr}.filters-panel{display:flex;flex-wrap:wrap;gap:6px 24px}.filters-panel h3{width:100%;margin:8px 0 0}.filters-panel ul{display:flex;flex-wrap:wrap;gap:4px 14px}.row-art{width:140px;min-height:150px;font-size:64px}.tiles{margin-top:-70px}}
 @media(max-width:600px){.result-bar{flex-direction:column;align-items:flex-start;margin:0 -10px;padding:10px}.result-row{gap:12px}.row-art{width:110px}.row-info{padding:12px 12px 14px 0}.row-btn{padding:8px 20px}}
+.served-by b{color:#fff;font-family:Consolas,monospace}

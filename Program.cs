@@ -14,7 +14,10 @@ var redis=builder.Configuration.GetConnectionString("Redis");
 if(!string.IsNullOrWhiteSpace(redis)) builder.Services.AddStackExchangeRedisCache(o=>o.Configuration=redis);
 else if(builder.Environment.IsDevelopment()) builder.Services.AddDistributedMemoryCache();
 else throw new InvalidOperationException("Redis es obligatorio fuera de Development para compartir sesiones entre EC2.");
-builder.Services.AddDataProtection().SetApplicationName("URPOnline");
+// Claves que cifran la cookie de sesión: en Redis (ElastiCache) para que todas las EC2 detrás del ALB las compartan.
+var dataProtection=builder.Services.AddDataProtection().SetApplicationName("URPOnline");
+if(!string.IsNullOrWhiteSpace(redis))
+ dataProtection.PersistKeysToStackExchangeRedis(StackExchange.Redis.ConnectionMultiplexer.Connect(redis),"URPOnline-DataProtection-Keys");
 builder.Services.AddSession(o=>{
  o.Cookie.Name=".URPOnline.Session";o.Cookie.HttpOnly=true;
  o.Cookie.SecurePolicy=builder.Environment.IsDevelopment()?CookieSecurePolicy.SameAsRequest:CookieSecurePolicy.Always;o.Cookie.SameSite=SameSiteMode.Lax;
@@ -38,6 +41,14 @@ app.MapControllerRoute("default","{controller=Home}/{action=Index}/{id?}");
 if(app.Configuration.GetValue<bool>("InitializeDatabase")){
  using var scope=app.Services.CreateScope();var database=scope.ServiceProvider.GetRequiredService<ShopDbContext>();
  // Migraciones EF Core versionadas (Data/Migrations): tablas + pgvector + índice HNSW. Luego datos de ejemplo.
- await database.Database.MigrateAsync();await SeedData.LoadAsync(database);
+ // pg_advisory_lock: si varias EC2 arrancan a la vez, solo una migra; las demás esperan y encuentran todo aplicado.
+ await database.Database.OpenConnectionAsync();
+ try {
+  await database.Database.ExecuteSqlRawAsync("SELECT pg_advisory_lock(727001)");
+  await database.Database.MigrateAsync();await SeedData.LoadAsync(database);
+ } finally {
+  await database.Database.ExecuteSqlRawAsync("SELECT pg_advisory_unlock(727001)");
+  await database.Database.CloseConnectionAsync();
+ }
 }
 app.Run();

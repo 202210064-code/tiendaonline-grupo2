@@ -30,7 +30,7 @@
 <main class="main">@if(TempData["Message"] != null) { <div class="notice">@TempData["Message"]</div> } @RenderBody()</main>
 <footer>
  <a class="back-top" href="#top">Volver arriba</a>
- <div class="footer-body"><span class="brand small">URP<span>Online</span></span><p>E-commerce de laboratorio · AWS VPC/DMZ · ASP.NET Core MVC</p></div>
+ <div class="footer-body"><span class="brand small">URP<span>Online</span></span><p>E-commerce de laboratorio · AWS VPC/DMZ · ASP.NET Core MVC</p><p class="served-by">Servido por: <b>@Environment.MachineName</b></p></div>
 </footer>
 <script src="~/js/search.js" asp-append-version="true"></script>
 </body></html>
