@@ -98,6 +98,47 @@ dotnet run --urls http://localhost:8080
 
 5. Abre **http://localhost:8080**
 
+### Librerías .NET (NuGet)
+
+**No se instalan a mano**: están declaradas en `TiendaOnline.csproj` y `dotnet run` / `dotnet restore` las descarga solas.
+
+| Paquete | Para qué |
+|---|---|
+| `Npgsql.EntityFrameworkCore.PostgreSQL` | EF Core + PostgreSQL (RDS) |
+| `Microsoft.EntityFrameworkCore.Design` | Crear y aplicar migraciones |
+| `Microsoft.Extensions.Caching.StackExchangeRedis` | Sesión y carrito en Redis (ElastiCache) |
+| `AWSSDK.Extensions.NETCore.Setup`, `AWSSDK.S3`, `AWSSDK.SecretsManager`, `AWSSDK.CloudWatch` | **AWS SDK for .NET** |
+| `Microsoft.ML.OnnxRuntime`, `Microsoft.ML.Tokenizers` | Modelo de embeddings local (búsqueda semántica) |
+
+### Base de datos: migraciones EF Core (tablas + pgvector + índice HNSW)
+
+Las migraciones están en `Data/Migrations/`:
+
+| Migración | Crea |
+|---|---|
+| `Inicial` | Tablas `Products`, `Orders`, `OrderItems`, `Promotions`, `BusinessEvents`, `SupplierImports` |
+| `BusquedaVectorialPgvector` | Extensión `vector`, tabla `ProductEmbeddings` (`vector(384)`) e **índice HNSW** `vector_cosine_ops` |
+
+Se aplican de **una** de estas dos formas:
+
+```powershell
+# A) Automática: al arrancar con InitializeDatabase=true (aplica migraciones + carga productos de ejemplo)
+$env:InitializeDatabase = "true"; dotnet run --urls http://localhost:8080
+
+# B) Manual, con la herramienta dotnet-ef (incluida en dotnet-tools.json del repo)
+dotnet tool restore
+dotnet tool run dotnet-ef database update
+```
+
+Comprueba en PostgreSQL:
+
+```powershell
+docker exec urp-postgres psql -U urponline -d urponline -c 'SELECT "MigrationId" FROM "__EFMigrationsHistory";'
+docker exec urp-postgres psql -U urponline -d urponline -c "SELECT indexname FROM pg_indexes WHERE tablename='ProductEmbeddings';"
+```
+
+Debe listar `20261010184951_Inicial`, `20261010185028_BusquedaVectorialPgvector` y el índice `IX_ProductEmbeddings_Embedding_hnsw`.
+
 | Qué probar | Dónde |
 |---|---|
 | Tienda, carrito y compra | http://localhost:8080 |

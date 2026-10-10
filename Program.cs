@@ -37,6 +37,7 @@ app.MapGet("/health",()=>Results.Ok(new{status="ok"}));
 app.MapControllerRoute("default","{controller=Home}/{action=Index}/{id?}");
 if(app.Configuration.GetValue<bool>("InitializeDatabase")){
  using var scope=app.Services.CreateScope();var database=scope.ServiceProvider.GetRequiredService<ShopDbContext>();
- await database.Database.EnsureCreatedAsync();await SeedData.LoadAsync(database);
+ // Migraciones EF Core versionadas (Data/Migrations): tablas + pgvector + índice HNSW. Luego datos de ejemplo.
+ await database.Database.MigrateAsync();await SeedData.LoadAsync(database);
 }
 app.Run();
