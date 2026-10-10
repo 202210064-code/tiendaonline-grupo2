@@ -90,7 +90,39 @@ Toda la arquitectura está escrita en ese archivo **YAML de CloudFormation**. AW
 | Datos | **RDS PostgreSQL 16** (con pgvector), **ElastiCache Redis** (sesiones, TLS), **S3** de proveedores |
 | Seguridad | **Rol IAM** para las EC2 (S3 + Session Manager, sin claves) |
 
-> 🔒 **HTTPS sin comprar dominio:** AWS Certificate Manager (ACM) solo emite certificados para dominios **tuyos** (no para `...elb.amazonaws.com`). Por eso la plantilla pone **CloudFront** delante del ALB: CloudFront ya trae el certificado de `*.cloudfront.net`, así que la tienda queda en **`https://xxxx.cloudfront.net`** (salida `ApplicationHTTPS`) y `http://` redirige a `https://`. Si tienes dominio propio: certificado en **ACM** + listener **443** en el ALB + registro en **Route 53**.
+### 🔒 HTTPS: certificado digital
+
+Para que la tienda abra con candado (`https://`) hace falta un **certificado digital**. En AWS hay dos caminos:
+
+| | Opción 1 — CloudFront (**ya incluida en la plantilla**) | Opción 2 — Dominio propio + ACM |
+|---|---|---|
+| ¿Necesita dominio? | **No** | Sí (ej. `urponline.com`, ~13 USD/año en Route 53) |
+| Certificado | El de AWS para `*.cloudfront.net` (automático) | **AWS Certificate Manager (ACM)**, gratis, para tu dominio |
+| URL | `https://xxxx.cloudfront.net` | `https://tienda.tudominio.com` |
+| Servicios | CloudFront → ALB | Route 53 + ACM + listener 443 en el ALB (y opcional CloudFront) |
+
+> ¿Por qué no un certificado ACM para la dirección del ALB? ACM solo emite certificados para dominios que **demuestras que son tuyos**; `...elb.amazonaws.com` es de AWS. Por eso, **sin dominio**, el camino es CloudFront.
+
+#### Opción 1 — CloudFront (sin dominio)
+
+Ya está en `infra/urponline-oneclick.yaml` (recurso **`CDN`**): no hay que hacer nada extra.
+
+- La URL segura aparece en **CloudFormation → URPOnlineLab → Outputs → `ApplicationHTTPS`**.
+- Si entras por `http://` CloudFront te redirige a `https://`.
+- Las páginas **no se guardan en caché** (el carrito y los precios siempre al día); los `/css/*` y `/js/*` **sí** (cargan más rápido).
+- CloudFront tarda **5-10 min** en publicarse después de crearse; si al principio da error, espera y recarga.
+- Compruébalo: abre la URL y haz clic en el **candado** del navegador → *La conexión es segura* → certificado emitido por **Amazon** para `*.cloudfront.net`.
+
+#### Opción 2 — Con dominio propio (ACM + Route 53)
+
+1. **Dominio en Route 53:** Consola → **Route 53 → Registered domains → Register domain** (o, si lo compraste en otro proveedor, **Hosted zones → Create hosted zone** y copia los 4 servidores *NS* en tu proveedor).
+2. **Certificado en ACM** (en la **misma región del ALB**, ej. Ohio): Consola → **Certificate Manager → Request → Request a public certificate** → *Fully qualified domain name*: `tienda.tudominio.com` → **DNS validation** → **Request**. Abre el certificado → **Create records in Route 53** → espera el estado **Issued** (≈5 min).
+3. **Listener HTTPS en el ALB:** Consola → **EC2 → Load Balancers** → el ALB de `URPOnlineLab` → **Listeners → Add listener** → *HTTPS : 443* → *Forward to* el target group de la pila → *Certificate*: el de ACM → **Add**.
+4. **Abrir el puerto 443:** **EC2 → Security Groups** → el del ALB (`URPOnline ALB public HTTP...`) → **Edit inbound rules** → *Add rule*: HTTPS, 443, `0.0.0.0/0`.
+5. **Registro DNS:** **Route 53 → Hosted zones → tu dominio → Create record** → nombre `tienda` → *Alias* → *Alias to Application Load Balancer* → región Ohio → el ALB → **Create**.
+6. Abre `https://tienda.tudominio.com`.
+
+> Los pasos 3 y 4 hechos a mano en la consola se pierden si borras la pila. Para dejarlos fijos, agrégalos al YAML como un `AWS::ElasticLoadBalancingV2::Listener` de puerto 443 con `Certificates: [{CertificateArn: ...}]` y una regla 443 en `AlbSG`.
 
 ### ⚡ Opción rápida: AWS CloudShell (sin instalar nada, sin Access Keys)
 
