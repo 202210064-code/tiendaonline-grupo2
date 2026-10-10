@@ -1,0 +1,14 @@
+@model List<TiendaOnline.Models.Promotion>
+<h1>Promociones en tiempo real</h1>
+<form method="post" action="/admin/promotions/create">
+@Html.AntiForgeryToken()
+<input type="hidden" name="key" value="@ViewBag.Key"/>
+<input name="code" placeholder="Código" required/>
+<input name="label" placeholder="Nombre" required/>
+<input name="percent" type="number" min="0" max="80" step="0.5" placeholder="Descuento %" required/>
+<label>Inicio UTC <input name="fromUtc" type="datetime-local" required/></label>
+<label>Fin UTC <input name="untilUtc" type="datetime-local" required/></label>
+<button class="btn">Guardar</button></form>
+<table class="data"><tr><th>Código</th><th>Campaña</th><th>%</th><th>Inicio UTC</th><th>Fin UTC</th><th>Activo</th><th></th></tr>
+@foreach(var p in Model){<tr><td>@p.Code</td><td>@p.Label</td><td>@p.DiscountPercent</td><td>@p.StartsUtc</td><td>@p.EndsUtc</td><td>@p.Enabled</td><td><form action="/admin/promotions/toggle" method="post">@Html.AntiForgeryToken()<input type="hidden" name="key" value="@ViewBag.Key"/><input type="hidden" name="id" value="@p.Id"/><button>Activar/desactivar</button></form></td></tr>}
+</table>

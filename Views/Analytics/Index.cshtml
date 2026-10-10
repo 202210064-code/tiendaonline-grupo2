@@ -1,0 +1,16 @@
+@{ ViewData["Title"] = "Analítica URPOnline"; }
+<h1>Dashboard comercial · URPOnline</h1>
+<p>Ventana: @ViewBag.Days días · Una orden solo cuenta como ingreso cuando está PAGADO.</p>
+<section class="metrics">
+<div><strong>@ViewBag.Visits</strong><span>Visitas</span></div>
+<div><strong>@ViewBag.Adds</strong><span>Adiciones al carrito</span></div>
+<div><strong>@ViewBag.Checkouts</strong><span>Pedidos creados</span></div>
+<div><strong>@ViewBag.Paid</strong><span>Órdenes pagadas</span></div>
+<div><strong>S/ @ViewBag.Revenue.ToString("N2")</strong><span>Ingreso confirmado</span></div>
+<div><strong>@ViewBag.Conversion.ToString("N2")%</strong><span>Conversión indicativa</span></div>
+</section>
+<h2>Órdenes pagadas por fecha</h2>
+<table class="data"><thead><tr><th>Fecha UTC</th><th>Órdenes</th><th>Ingresos</th></tr></thead><tbody>
+@foreach(var row in ViewBag.ByDay){<tr><td>@row.day</td><td>@row.orders</td><td>S/ @row.revenue.ToString("N2")</td></tr>}
+</tbody></table>
+<p>El conteo de visitas representa eventos, no usuarios únicos deduplicados.</p>

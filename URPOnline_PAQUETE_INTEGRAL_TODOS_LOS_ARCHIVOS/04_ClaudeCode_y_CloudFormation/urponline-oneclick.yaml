@@ -1,0 +1,291 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: URPOnline - Despliegue base ALB ASG RDS Redis S3. Artefacto .NET publicado previamente en S3.
+Parameters:
+  ArtifactBucket:
+    Type: String
+    Description: Bucket EXISTENTE con el ZIP publicado (no ZIP de fuentes), en esta región
+  ArtifactKey:
+    Type: String
+    Default: releases/urponline-publish.zip
+    Description: Clave de ZIP con TiendaOnline.dll en la raiz
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+  DBPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 12
+    Description: Use a secret; never hardcode password in this file
+  KeyPair:
+    Type: String
+    Default: ''
+    Description: Optional; recommended SSM Session Manager instead of SSH
+  InstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.small,t3.medium,t3.large]
+  DBInstanceClass:
+    Type: String
+    Default: db.t3.micro
+  AppDesired:
+    Type: Number
+    Default: 2
+  AppMax:
+    Type: Number
+    Default: 4
+  EnableMultiAZ:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true','false']
+Conditions:
+  MultiAZ: !Equals [!Ref EnableMultiAZ,'true']
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties: {CidrBlock: 10.0.0.0/16,EnableDnsHostnames: true,EnableDnsSupport: true,Tags: [{Key: Name,Value: URPOnline-VPC}]}
+  IGW: {Type: AWS::EC2::InternetGateway}
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: {VpcId: !Ref VPC,InternetGatewayId: !Ref IGW}
+  PublicA:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref VPC,CidrBlock: 10.0.1.0/24,AvailabilityZone: !Select [0,!GetAZs ''],MapPublicIpOnLaunch: true}
+  PublicB:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref VPC,CidrBlock: 10.0.2.0/24,AvailabilityZone: !Select [1,!GetAZs ''],MapPublicIpOnLaunch: true}
+  AppA:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref VPC,CidrBlock: 10.0.11.0/24,AvailabilityZone: !Select [0,!GetAZs '']}
+  AppB:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref VPC,CidrBlock: 10.0.12.0/24,AvailabilityZone: !Select [1,!GetAZs '']}
+  DataA:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref VPC,CidrBlock: 10.0.21.0/24,AvailabilityZone: !Select [0,!GetAZs '']}
+  DataB:
+    Type: AWS::EC2::Subnet
+    Properties: {VpcId: !Ref VPC,CidrBlock: 10.0.22.0/24,AvailabilityZone: !Select [1,!GetAZs '']}
+  PublicRT:
+    Type: AWS::EC2::RouteTable
+    Properties: {VpcId: !Ref VPC}
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachIGW
+    Properties: {RouteTableId: !Ref PublicRT,DestinationCidrBlock: 0.0.0.0/0,GatewayId: !Ref IGW}
+  PublicAssocA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PublicA,RouteTableId: !Ref PublicRT}
+  PublicAssocB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref PublicB,RouteTableId: !Ref PublicRT}
+  EipA: {Type: AWS::EC2::EIP,Properties: {Domain: vpc}}
+  EipB: {Type: AWS::EC2::EIP,Properties: {Domain: vpc}}
+  NatA:
+    Type: AWS::EC2::NatGateway
+    DependsOn: AttachIGW
+    Properties: {AllocationId: !GetAtt EipA.AllocationId,SubnetId: !Ref PublicA}
+  NatB:
+    Type: AWS::EC2::NatGateway
+    DependsOn: AttachIGW
+    Properties: {AllocationId: !GetAtt EipB.AllocationId,SubnetId: !Ref PublicB}
+  AppRTA: {Type: AWS::EC2::RouteTable,Properties: {VpcId: !Ref VPC}}
+  AppRTB: {Type: AWS::EC2::RouteTable,Properties: {VpcId: !Ref VPC}}
+  AppRouteA:
+    Type: AWS::EC2::Route
+    Properties: {RouteTableId: !Ref AppRTA,DestinationCidrBlock: 0.0.0.0/0,NatGatewayId: !Ref NatA}
+  AppRouteB:
+    Type: AWS::EC2::Route
+    Properties: {RouteTableId: !Ref AppRTB,DestinationCidrBlock: 0.0.0.0/0,NatGatewayId: !Ref NatB}
+  AssocAppA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref AppA,RouteTableId: !Ref AppRTA}
+  AssocAppB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref AppB,RouteTableId: !Ref AppRTB}
+  DataRT: {Type: AWS::EC2::RouteTable,Properties: {VpcId: !Ref VPC}}
+  DataAssocA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref DataA,RouteTableId: !Ref DataRT}
+  DataAssocB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: {SubnetId: !Ref DataB,RouteTableId: !Ref DataRT}
+  AlbSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: URPOnline ALB public HTTP - add ACM HTTPS for production
+      VpcId: !Ref VPC
+      SecurityGroupIngress: [{IpProtocol: tcp,FromPort: 80,ToPort: 80,CidrIp: 0.0.0.0/0}]
+  AppSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: URPOnline apps from ALB only
+      VpcId: !Ref VPC
+      SecurityGroupIngress: [{IpProtocol: tcp,FromPort: 80,ToPort: 80,SourceSecurityGroupId: !Ref AlbSG}]
+  DbSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: PostgreSQL from App for initial lab - switch to PgBouncer SG in advanced topology
+      VpcId: !Ref VPC
+      SecurityGroupIngress: [{IpProtocol: tcp,FromPort: 5432,ToPort: 5432,SourceSecurityGroupId: !Ref AppSG}]
+  RedisSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Redis from application
+      VpcId: !Ref VPC
+      SecurityGroupIngress: [{IpProtocol: tcp,FromPort: 6379,ToPort: 6379,SourceSecurityGroupId: !Ref AppSG}]
+  DBSubnet:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: {DBSubnetGroupDescription: URPOnline data,SubnetIds: [!Ref DataA,!Ref DataB]}
+  Postgres:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    Properties:
+      Engine: postgres
+      DBInstanceClass: !Ref DBInstanceClass
+      AllocatedStorage: 20
+      DBName: urponline
+      MasterUsername: urponline
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref DBSubnet
+      VPCSecurityGroups: [!Ref DbSG]
+      PubliclyAccessible: false
+      BackupRetentionPeriod: 7
+      MultiAZ: !If [MultiAZ,true,false]
+      StorageEncrypted: true
+  RedisSubnet:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties: {Description: URPOnline data subnets,SubnetIds: [!Ref DataA,!Ref DataB]}
+  Redis:
+    Type: AWS::ElastiCache::ReplicationGroup
+    Properties:
+      ReplicationGroupDescription: URPOnline Redis session store
+      Engine: redis
+      CacheNodeType: cache.t3.micro
+      NumCacheClusters: 2
+      AutomaticFailoverEnabled: true
+      MultiAZEnabled: true
+      CacheSubnetGroupName: !Ref RedisSubnet
+      SecurityGroupIds: [!Ref RedisSG]
+      AtRestEncryptionEnabled: true
+      TransitEncryptionEnabled: true
+  SupplierBucket:
+    Type: AWS::S3::Bucket
+    Properties: {PublicAccessBlockConfiguration: {BlockPublicAcls: true,BlockPublicPolicy: true,IgnorePublicAcls: true,RestrictPublicBuckets: true},VersioningConfiguration: {Status: Enabled}}
+  AppRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: {Version: '2012-10-17',Statement: [{Effect: Allow,Principal: {Service: ec2.amazonaws.com},Action: 'sts:AssumeRole'}]}
+      ManagedPolicyArns: ['arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore']
+      Policies:
+        - PolicyName: URPOnlineS3Read
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['s3:GetObject','s3:ListBucket']
+                Resource: [!GetAtt SupplierBucket.Arn, !Sub '${SupplierBucket.Arn}/*']
+              - Effect: Allow
+                Action: ['s3:GetObject']
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${ArtifactBucket}/${ArtifactKey}'
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: {Roles: [!Ref AppRole]}
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties: {Type: application,Scheme: internet-facing,Subnets: [!Ref PublicA,!Ref PublicB],SecurityGroups: [!Ref AlbSG]}
+  TG:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties: {VpcId: !Ref VPC,Port: 80,Protocol: HTTP,TargetType: instance,HealthCheckPath: /health}
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: {LoadBalancerArn: !Ref ALB,Port: 80,Protocol: HTTP,DefaultActions: [{Type: forward,TargetGroupArn: !Ref TG}]}
+  Launch:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref LatestAmiId
+        InstanceType: !Ref InstanceType
+        IamInstanceProfile: {Arn: !GetAtt InstanceProfile.Arn}
+        SecurityGroupIds: [!Ref AppSG]
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            set -euxo pipefail
+            dnf install -y nginx unzip amazon-cloudwatch-agent aspnetcore-runtime-8.0
+            mkdir -p /opt/urponline
+            aws s3 cp s3://${ArtifactBucket}/${ArtifactKey} /tmp/urp.zip
+            unzip -oq /tmp/urp.zip -d /opt/urponline
+            test -f /opt/urponline/TiendaOnline.dll
+            chown -R nginx:nginx /opt/urponline
+            cat >/etc/urponline.env <<'ENV'
+            ASPNETCORE_ENVIRONMENT=Production
+            ASPNETCORE_URLS=http://127.0.0.1:8080
+            ConnectionStrings__Postgres=Host=${Postgres.Endpoint.Address};Port=5432;Database=urponline;Username=urponline;Password=${DBPassword};SSL Mode=Require;Trust Server Certificate=true
+            ConnectionStrings__Redis=${Redis.PrimaryEndPoint.Address}:6379,ssl=true,abortConnect=false
+            InitializeDatabase=false
+            ENV
+            chmod 600 /etc/urponline.env
+            cat >/etc/systemd/system/urponline.service <<'SYSTEMD'
+            [Unit]
+            Description=URPOnline ASP.NET Core
+            After=network-online.target
+            Wants=network-online.target
+            [Service]
+            WorkingDirectory=/opt/urponline
+            EnvironmentFile=/etc/urponline.env
+            ExecStart=/usr/bin/dotnet /opt/urponline/TiendaOnline.dll
+            Restart=always
+            RestartSec=5
+            User=nginx
+            Group=nginx
+            NoNewPrivileges=true
+            [Install]
+            WantedBy=multi-user.target
+            SYSTEMD
+            cat >/etc/nginx/nginx.conf <<'NGINX'
+            user nginx;
+            worker_processes auto;
+            error_log /var/log/nginx/error.log warn;
+            pid /run/nginx.pid;
+            events { worker_connections 1024; }
+            http {
+             include /etc/nginx/mime.types;
+             default_type application/octet-stream;
+             access_log /var/log/nginx/access.log;
+             server {
+              listen 80 default_server;
+              server_name _;
+              location / {
+                proxy_pass http://127.0.0.1:8080;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+                proxy_set_header X-Forwarded-Host $host;
+              }
+             }
+            }
+            NGINX
+            rm -f /etc/nginx/conf.d/default.conf
+            systemctl daemon-reload
+            systemctl enable --now urponline
+            systemctl enable --now nginx
+            curl --retry 20 --retry-delay 3 --retry-connrefused --fail http://127.0.0.1:8080/health
+  Scaling:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier: [!Ref AppA,!Ref AppB]
+      MinSize: '2'
+      MaxSize: !Ref AppMax
+      DesiredCapacity: !Ref AppDesired
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 300
+      TargetGroupARNs: [!Ref TG]
+      LaunchTemplate: {LaunchTemplateId: !Ref Launch,Version: !GetAtt Launch.LatestVersionNumber}
+Outputs:
+  ALBDNS: {Value: !GetAtt ALB.DNSName}
+  ApplicationHTTP: {Value: !Sub "http://${ALB.DNSName}"}
+  RDSEndpoint: {Value: !GetAtt Postgres.Endpoint.Address}
+  RedisPrimary: {Value: !GetAtt Redis.PrimaryEndPoint.Address}
+  S3SupplierBucket: {Value: !Ref SupplierBucket}
+  VpcId: {Value: !Ref VPC}

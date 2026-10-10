@@ -1,0 +1,9 @@
+[Unit]
+Description=URPOnline nightly supplier catalog import
+After=network-online.target
+[Service]
+Type=oneshot
+User=urponline
+WorkingDirectory=/opt/urponline
+EnvironmentFile=/etc/urponline/worker.env
+ExecStart=/usr/bin/dotnet /opt/urponline/worker/URPOnline.SupplierWorker.dll --source s3 --bucket YOUR_BUCKET --key suppliers/products.csv

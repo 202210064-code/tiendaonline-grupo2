@@ -1,0 +1,15 @@
+[Unit]
+Description=TiendaOnline ASP.NET Core
+After=network-online.target
+Wants=network-online.target
+[Service]
+WorkingDirectory=/opt/tiendaonline
+ExecStart=/usr/bin/dotnet /opt/tiendaonline/TiendaOnline.dll
+Restart=always
+RestartSec=5
+User=www-data
+Environment=ASPNETCORE_URLS=http://0.0.0.0:8080
+Environment=ASPNETCORE_ENVIRONMENT=Production
+EnvironmentFile=/etc/tiendaonline.env
+[Install]
+WantedBy=multi-user.target

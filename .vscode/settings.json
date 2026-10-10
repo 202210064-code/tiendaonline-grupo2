@@ -1,0 +1,34 @@
+{
+  // Etiquetas de CloudFormation: sin esto la extensión YAML marca !Ref, !Sub, etc. como error.
+  "yaml.customTags": [
+    "!Ref scalar",
+    "!Sub scalar",
+    "!Sub sequence",
+    "!GetAtt scalar",
+    "!GetAtt sequence",
+    "!GetAZs scalar",
+    "!Select sequence",
+    "!Equals sequence",
+    "!If sequence",
+    "!Not sequence",
+    "!And sequence",
+    "!Or sequence",
+    "!Join sequence",
+    "!Split sequence",
+    "!FindInMap sequence",
+    "!ImportValue scalar",
+    "!Base64 scalar",
+    "!Base64 mapping",
+    "!Cidr sequence",
+    "!Condition scalar"
+  ],
+  "files.associations": {
+    "**/urponline-oneclick.yaml": "yaml",
+    "**/infra/*.yaml": "yaml"
+  },
+  "files.exclude": {
+    "**/bin": true,
+    "**/obj": true,
+    "**/out": true
+  }
+}

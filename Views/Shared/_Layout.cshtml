@@ -1,0 +1,5 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>URPOnline | Tienda en línea</title><link rel="stylesheet" href="~/css/site.css" asp-append-version="true" /></head>
+<body><header class="nav"><a class="brand" asp-controller="Home" asp-action="Index">Nova<span>Shop</span></a><nav><a asp-controller="Home" asp-action="Index">Productos</a><a asp-controller="Cart" asp-action="Index">🛒 Carrito</a></nav></header>
+<main class="main">@if(TempData["Message"] != null) { <div class="notice">@TempData["Message"]</div> } @RenderBody()</main>
+<footer>URPOnline · E-commerce · AWS VPC/DMZ · ASP.NET Core MVC</footer></body></html>

@@ -1,0 +1,13 @@
+URPOnline — Paquete integral de entregables
+
+01_Aplicacion: ZIP con codigo fuente C# y recursos del proyecto.
+02_Guias_Principales: caso empresarial, analitica/dashboard, guia local/AWS SDK y banco de 100 preguntas.
+03_Guias_Tecnicas: sesiones Redis, AWS SDK, PostgreSQL, PgBouncer, PITR y monitorizacion.
+04_ClaudeCode_y_CloudFormation: SPEC.md, CLAUDE.md, YAML y guia de despliegue.
+05_Infografias: figuras de arquitectura, sesiones y servicios.
+06_Historico_Manuales: versiones precedentes conservadas como referencia; algunas se solapan.
+
+IMPORTANTE: el codigo y el YAML son materiales de implementacion no validados en una cuenta real AWS.
+La implementacion real requiere configurar permisos, secretos, artefactos, certificados y realizar pruebas.
+
+Recomendacion: comenzar con 02_Guias_Principales y 04_ClaudeCode_y_CloudFormation.

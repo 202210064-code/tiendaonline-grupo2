@@ -1,0 +1,8 @@
+[Unit]
+Description=Nightly catalog import in Lima time
+[Timer]
+OnCalendar=*-*-* 02:00:00 America/Lima
+Persistent=true
+Unit=urponline-worker.service
+[Install]
+WantedBy=timers.target
