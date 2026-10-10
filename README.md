@@ -90,7 +90,41 @@ Toda la arquitectura está escrita en ese archivo **YAML de CloudFormation**. AW
 | Datos | **RDS PostgreSQL 16** (con pgvector), **ElastiCache Redis** (sesiones, TLS), **S3** de proveedores |
 | Seguridad | **Rol IAM** para las EC2 (S3 + Session Manager, sin claves) |
 
-Hay dos formas de desplegar. **Haz primero la A** (para entender cada paso); después automatiza con la B.
+### ⚡ Opción rápida: AWS CloudShell (sin instalar nada, sin Access Keys)
+
+**CloudShell** es una terminal dentro de la consola de AWS que ya trae la AWS CLI conectada a tu cuenta. El ZIP de la tienda ya está compilado en [Releases v1.0](https://github.com/jjjfrancia/tiendaonline/releases/tag/v1.0).
+
+1. Consola de AWS → arriba a la derecha elige la región **Ohio (us-east-2)**.
+2. Haz clic en el icono **`>_`** de la barra superior (o busca **CloudShell**).
+3. Pega este bloque y presiona **Enter**:
+
+```bash
+cd ~ && rm -rf tiendaonline && git clone https://github.com/jjjfrancia/tiendaonline.git && cd tiendaonline
+REGION=us-east-2; STACK=URPOnlineLab
+ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+BUCKET=urponline-artefactos-$ACCOUNT-$REGION
+DBPASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 20); echo "$DBPASS" > ~/urponline-dbpass.txt
+curl -fL -o urponline-publish.zip https://github.com/jjjfrancia/tiendaonline/releases/download/v1.0/urponline-publish.zip
+aws s3 mb s3://$BUCKET --region $REGION; aws s3 cp urponline-publish.zip s3://$BUCKET/releases/urponline-v1.zip
+aws cloudformation deploy --stack-name $STACK --region $REGION --template-file infra/urponline-oneclick.yaml --capabilities CAPABILITY_IAM --parameter-overrides ArtifactBucket=$BUCKET ArtifactKey=releases/urponline-v1.zip DBPassword=$DBPASS EnableMultiAZ=false
+aws cloudformation describe-stacks --stack-name $STACK --region $REGION --query "Stacks[0].Outputs" --output table
+```
+
+| Línea | Qué hace |
+|---|---|
+| `git clone ...` | Descarga el proyecto (incluye el YAML `infra/urponline-oneclick.yaml`) |
+| `ACCOUNT=` / `BUCKET=` | Arma un nombre de bucket único con tu número de cuenta |
+| `DBPASS=` | Genera la contraseña de RDS y la guarda en `~/urponline-dbpass.txt` |
+| `curl ...` | Descarga el ZIP compilado de la tienda |
+| `aws s3 mb` / `aws s3 cp` | Crea el bucket y sube el ZIP (las EC2 lo descargan al arrancar) |
+| `aws cloudformation deploy` | Entrega el YAML a CloudFormation, que crea VPC, ALB, EC2, RDS, ElastiCache y S3 (20-30 min) |
+| `describe-stacks` | Muestra los resultados: **`ApplicationHTTP` es la URL de tu tienda** |
+
+Puedes cerrar CloudShell mientras se crea: sigue en AWS. Avance en **CloudFormation → URPOnlineLab → Events**; al terminar, la URL está en la pestaña **Outputs**.
+
+---
+
+Además, hay dos formas de hacerlo desde tu PC. **Haz primero la A** (para entender cada paso); después automatiza con la B.
 
 > ⚠️ **Cuesta dinero mientras exista** (NAT, ALB, EC2, RDS, Redis). Al terminar la clase **bórrala** (ver "Borrar todo" al final de esta sección).
 
