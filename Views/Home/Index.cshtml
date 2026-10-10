@@ -1,6 +1,8 @@
 @model List<Product>
 @{
  string? query = ViewBag.Query; string? category = ViewBag.Category;
+ var related = (List<RelatedProduct>)ViewBag.Related;
+ string? semanticUnavailable = ViewBag.SemanticUnavailable;
  var filtered = !string.IsNullOrWhiteSpace(query) || !string.IsNullOrWhiteSpace(category);
 }
 @if(!filtered){
@@ -14,22 +16,18 @@
   @if(filtered){<p>@Model.Count resultado(s)@if(!string.IsNullOrWhiteSpace(query)){<text> para <b>"@query"</b></text>}@if(!string.IsNullOrWhiteSpace(category)){<text> en <b>@category</b></text>}</p>}
   else{<h2>Productos destacados</h2><span>@Model.Count productos</span>}
  </div>
- <div class="products">
- @foreach(var product in Model){
-  <article class="product">
-   <div class="product-art">@product.Emoji</div>
-   <div class="product-info">
-    <h3>@product.Name</h3>
-    <small class="category">@product.Category</small>
-    <p class="desc">@product.Description</p>
-    <div class="price"><sup>S/</sup>@Math.Floor(product.Price).ToString("N0")<sup>@((product.Price % 1 * 100).ToString("00"))</sup></div>
-    @if(product.Stock==0){<p class="stock out">No disponible por el momento</p>}
-    else if(product.Stock<=5){<p class="stock low">Solo quedan @product.Stock en stock</p>}
-    else{<p class="stock in">En stock</p>}
-    <form asp-controller="Cart" asp-action="Add" method="post"><input type="hidden" name="id" value="@product.Id"/><input type="hidden" name="quantity" value="1"/><button class="btn-cart" disabled="@(product.Stock==0)">Agregar al carrito</button></form>
-   </div>
-  </article>
+ @if(Model.Count>0){
+ <div class="products">@foreach(var product in Model){<partial name="_ProductCard" model="product"/>}</div>
+ }else if(related.Count==0){
+ <div class="empty"><h2>No encontramos productos</h2><p>Prueba con otra palabra o categoría.</p><a class="btn-cart inline" asp-controller="Home" asp-action="Index">Ver todo el catálogo</a></div>
  }
- </div>
- @if(Model.Count==0){<div class="empty"><h2>No encontramos productos</h2><p>Prueba con otra palabra o categoría.</p><a class="btn-cart inline" asp-controller="Home" asp-action="Index">Ver todo el catálogo</a></div>}
 </section>
+@if(related.Count>0){
+<section class="results related">
+ <div class="results-head"><h2>Productos relacionados</h2><span>Búsqueda semántica con pgvector</span></div>
+ <div class="products">@foreach(var r in related){<partial name="_ProductCard" model="r.Product" view-data='new ViewDataDictionary(ViewData){{"Similarity",r.Similarity}}'/>}</div>
+</section>
+}
+@if(semanticUnavailable!=null && Context.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment()){
+<div class="notice dev">Búsqueda semántica desactivada: @semanticUnavailable</div>
+}

@@ -17,22 +17,24 @@ Todo lo que necesitas **instalar y configurar** en tu equipo antes de trabajar c
 | 4 | **AWS CLI v2** | Sí | `winget install Amazon.AWSCLI` | `aws --version` |
 | 5 | **Session Manager plugin** | Recomendado | `winget install Amazon.SessionManagerPlugin` | `session-manager-plugin` |
 | 6 | **Python 3** + **cfn-lint** | Recomendado | `winget install Python.Python.3.12` y luego `pip install cfn-lint` | `cfn-lint --version` |
-| 7 | **PostgreSQL 16** | Solo para correr la app en local | `winget install PostgreSQL.PostgreSQL.16` | `psql --version` |
-| 8 | **Redis** | Opcional en local | Ver la sección 1.1 | `redis-cli ping` → `PONG` |
+| 7 | **Docker Desktop** | Sí, para correr la app en local | `winget install Docker.DockerDesktop` | `docker --version` |
+| 8 | **PostgreSQL 16 + pgvector** | Sí, en local (va en Docker) | Ver la sección 3.6 | `docker ps` muestra `urp-postgres` |
+| 9 | **Redis** | Recomendado en local (va en Docker) | Ver la sección 3.6 | `docker ps` muestra `urp-redis` |
+| 10 | **Modelo de embeddings** | Sí, para la búsqueda semántica | `scripts/descargar-modelo.ps1` (sección 3.7) | existe `ml-models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx` |
 
 > ¿Para qué sirve cada uno?
 > - **.NET 8 SDK**: compila y ejecuta la tienda. Si tienes una versión más nueva (9 o 10), también compila proyectos `net8.0`, pero para **ejecutarlos** en local necesitas el runtime 8, que viene incluido con el SDK 8.
 > - **AWS CLI**: sube el ZIP a S3 y crea la pila de CloudFormation desde la terminal.
 > - **Session Manager plugin**: permite entrar a las EC2 privadas desde tu terminal con `aws ssm start-session`. Sin él, puedes entrar igual desde la consola web (EC2 → Connect → Session Manager).
 > - **cfn-lint**: revisa la plantilla de CloudFormation antes de desplegarla y te avisa de errores sin gastar dinero.
+> - **Docker Desktop**: levanta PostgreSQL (con la extensión **pgvector**) y Redis sin instalarlos en Windows.
+> - **Modelo de embeddings**: convierte textos en vectores para que la búsqueda encuentre **productos relacionados** aunque no coincida ninguna palabra.
 
-### 1.1 Redis en Windows (opcional)
+### 1.1 ¿Por qué Docker y no instalar PostgreSQL directamente?
 
-Redis no tiene versión oficial para Windows. Elige una de estas opciones:
+La búsqueda semántica necesita la extensión **pgvector**. El instalador de PostgreSQL para Windows no la trae y compilarla es complicado. La imagen `pgvector/pgvector:pg16` ya la incluye. Redis tampoco tiene versión oficial para Windows; también va en Docker.
 
-- **WSL** (Ubuntu): `wsl --install`, y dentro de Ubuntu `sudo apt install redis-server && sudo service redis-server start`.
-- **Docker Desktop**: `docker run -d --name redis -p 6379:6379 redis:7`.
-- **Sin Redis**: en modo `Development`, la app usa caché en memoria si la cadena de Redis está en blanco. Ver [MEMORIA_DESPLIEGUE.md](MEMORIA_DESPLIEGUE.md), sección 4.
+> Docker Desktop pide reiniciar la PC y activar WSL 2 la primera vez. Después de instalarlo, **ábrelo** (icono de la ballena) antes de usar `docker`.
 
 ---
 
@@ -74,15 +76,15 @@ git config --global user.email "tu-correo@ejemplo.com"
 
 ### 3.2 Clonar y abrir el proyecto
 
-El repositorio es **privado**. Usa el **token de solo lectura** que te da el profesor, en lugar de `TOKEN`:
+El repositorio es público: https://github.com/jjjfrancia/tiendaonline
 
 ```powershell
-git clone https://TOKEN@github.com/jjjfrancia/tiendaonline.git
+git clone https://github.com/jjjfrancia/tiendaonline.git
 cd tiendaonline
 code .
 ```
 
-> Con el token puedes clonar y actualizar (`git pull`), pero no subir cambios. **No lo compartas** fuera del curso. Si quieres guardar tus cambios, súbelos a un repositorio privado tuyo (`git remote set-url origin <tu-repo>`).
+> Puedes clonar y actualizar (`git pull`), pero no subir cambios al repositorio del curso. Si quieres guardar tu trabajo en GitHub, haz un **Fork** (botón arriba a la derecha en GitHub) y trabaja sobre tu copia.
 
 ### 3.3 Credenciales de AWS
 
@@ -131,16 +133,44 @@ dotnet dev-certs https --trust
 
 Solo es necesario si vas a probar la app en local por HTTPS.
 
-### 3.6 Base de datos local (si instalaste PostgreSQL)
+### 3.6 PostgreSQL con pgvector y Redis (Docker)
 
-Abre **SQL Shell (psql)** o SQLTools y ejecuta:
+Con Docker Desktop abierto:
 
-```sql
-CREATE USER urponline WITH PASSWORD 'localonly';
-CREATE DATABASE urponline OWNER urponline;
+```powershell
+docker run -d --name urp-postgres -e POSTGRES_USER=urponline -e POSTGRES_PASSWORD=localonly -e POSTGRES_DB=urponline -p 5432:5432 pgvector/pgvector:pg16
+docker run -d --name urp-redis -p 6379:6379 redis:7
 ```
 
+Otro día, para volver a encenderlos: `docker start urp-postgres urp-redis`.
+
+> Si antes creaste `urp-postgres` con la imagen `postgres:16` (sin pgvector), bórralo y créalo de nuevo con la línea de arriba: `docker rm -f urp-postgres`. La base se vuelve a llenar al arrancar la app con `InitializeDatabase=true`.
+
 En SQLTools, añade una conexión PostgreSQL con host `localhost`, puerto `5432`, base de datos `urponline`, usuario `urponline` y contraseña `localonly`.
+
+### 3.7 Modelo de embeddings (búsqueda semántica)
+
+La tienda usa el modelo **`paraphrase-multilingual-MiniLM-L12-v2`** (entiende español, 384 dimensiones), ejecutado **en tu equipo** con ONNX Runtime: no usa internet ni APIs pagadas. Pesa 118 MB, por eso **no está en el repositorio**; se descarga con un script que verifica su SHA-256:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/descargar-modelo.ps1
+```
+
+(macOS/Linux: `bash scripts/descargar-modelo.sh`)
+
+Queda en `ml-models/paraphrase-multilingual-MiniLM-L12-v2/` (`model.onnx` + `sentencepiece.bpe.model`). Cuando arranca la app, verás en la terminal:
+
+```
+Modelo de embeddings cargado desde ...
+Embeddings actualizados: 6 producto(s)
+```
+
+Cómo funciona:
+1. Al arrancar (y cada 10 minutos) la app calcula un vector por producto con `nombre + categoría + descripción` y lo guarda en la tabla `ProductEmbeddings` (columna `vector(384)` de pgvector).
+2. Al buscar, convierte tu texto en vector y PostgreSQL ordena los productos por **similitud coseno** (`1 - (embedding <=> consulta)`).
+3. La página muestra los resultados por texto y, debajo, **Productos relacionados** con su % de similitud. Prueba: `computadora`, `tomar fotos`, `reloj deportivo`.
+
+Ajustes en `appsettings.json` → `Embeddings`: `RelatedLimit` (cuántos mostrar), `MinSimilarity` (umbral, 0.3) y `RefreshMinutes`.
 
 ---
 
@@ -154,6 +184,8 @@ dotnet --list-sdks
 aws --version
 aws sts get-caller-identity
 cfn-lint --version
+docker ps                                   # deben aparecer urp-postgres y urp-redis
+Test-Path ml-models/paraphrase-multilingual-MiniLM-L12-v2/model.onnx   # True
 dotnet restore; dotnet build -c Release
 ```
 
@@ -172,6 +204,10 @@ Si `dotnet build` termina con **Build succeeded**, ya puedes seguir con [MEMORIA
 | La plantilla YAML aparece llena de errores rojos en `!Ref` | Instala la extensión YAML de Red Hat y abre la **carpeta** del proyecto (no el archivo suelto), para que se aplique `.vscode/settings.json` |
 | `cfn-lint` no se encuentra después de `pip install` | Reabre la terminal; si sigue igual, usa `python -m cfnlint ...` |
 | C# Dev Kit pide iniciar sesión | Es una cuenta Microsoft gratuita (uso educativo/individual) |
+| `docker` → *error during connect* / *cannot find the file specified* | Docker Desktop no está abierto: ábrelo y espera a que diga *Engine running* |
+| Log: `extension "vector" is not available` | Tu contenedor usa `postgres:16`. Recréalo con `pgvector/pgvector:pg16` (sección 3.6) |
+| Log: `No se encontró el modelo de embeddings` y no aparecen *Productos relacionados* | Ejecuta `scripts/descargar-modelo.ps1` y reinicia la app |
+| El script del modelo dice *SHA-256 no coincide* | La descarga se cortó: vuelve a ejecutarlo |
 
 ---
 
@@ -185,5 +221,6 @@ Si `dotnet build` termina con **Build succeeded**, ya puedes seguir con [MEMORIA
 | AWS CLI v2 | `brew install awscli` | instalador oficial: docs.aws.amazon.com/cli |
 | Session Manager plugin | `brew install --cask session-manager-plugin` | paquete `.deb` oficial de AWS |
 | cfn-lint | `pip3 install cfn-lint` | `pip3 install cfn-lint` |
-| PostgreSQL | `brew install postgresql@16` | `sudo apt install postgresql` |
-| Redis | `brew install redis` | `sudo apt install redis-server` |
+| Docker | `brew install --cask docker` | Docker Engine: docs.docker.com/engine/install |
+| PostgreSQL + pgvector, Redis | mismos `docker run` de la sección 3.6 | mismos `docker run` de la sección 3.6 |
+| Modelo de embeddings | `bash scripts/descargar-modelo.sh` | `bash scripts/descargar-modelo.sh` |

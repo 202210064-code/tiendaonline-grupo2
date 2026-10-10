@@ -16,6 +16,44 @@
 
 ---
 
+## 🚀 Descargar y correr la tienda en tu equipo
+
+Requisitos: **.NET 8 SDK**, **Docker Desktop** abierto y **Git**. Cómo instalarlos: [CONFIGURACION_VSCODE.md](CONFIGURACION_VSCODE.md).
+
+```powershell
+# 1. Descargar el proyecto
+git clone https://github.com/jjjfrancia/tiendaonline.git
+cd tiendaonline
+
+# 2. PostgreSQL con pgvector + Redis (Docker)
+docker run -d --name urp-postgres -e POSTGRES_USER=urponline -e POSTGRES_PASSWORD=localonly -e POSTGRES_DB=urponline -p 5432:5432 pgvector/pgvector:pg16
+docker run -d --name urp-redis -p 6379:6379 redis:7
+
+# 3. Modelo de búsqueda semántica (118 MB, se descarga una vez)
+powershell -ExecutionPolicy Bypass -File scripts/descargar-modelo.ps1
+
+# 4. Arrancar la tienda (la primera vez crea las tablas y los productos de ejemplo)
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+$env:InitializeDatabase = "true"
+$env:Dashboard__AccessKey = "demo-dashboard"
+$env:Admin__AccessKey = "demo-admin"
+dotnet run --urls http://localhost:8080
+```
+
+5. Abre **http://localhost:8080**
+
+| Qué probar | Dónde |
+|---|---|
+| Tienda, carrito y compra | http://localhost:8080 |
+| Búsqueda semántica (pgvector): busca `tomar fotos` o `reloj deportivo` → **Productos relacionados** | barra de búsqueda |
+| Analítica | http://localhost:8080/Analytics?key=demo-dashboard |
+| Promociones | http://localhost:8080/admin/promotions?key=demo-admin |
+
+Otro día: `docker start urp-postgres urp-redis` y `dotnet run --urls http://localhost:8080` (ya sin `InitializeDatabase`).
+¿Algo falla? Tabla de **Problemas frecuentes** en [CONFIGURACION_VSCODE.md](CONFIGURACION_VSCODE.md#5-problemas-frecuentes).
+
+---
+
 # URPOnline v2 — tienda C# + analítica + promociones + Worker AWS SDK
 
 ## Ejecutar localmente (sin Docker)

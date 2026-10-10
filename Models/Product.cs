@@ -9,3 +9,4 @@ public class Product {
  [MaxLength(100)] public string Category { get; set; } = "General";
  public string Emoji { get; set; } = "🛍️";
 }
+public record RelatedProduct(Product Product, double Similarity);

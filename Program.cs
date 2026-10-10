@@ -1,5 +1,4 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.DataProtection;
 using Amazon.S3;
 using Amazon.SecretsManager;
@@ -22,6 +21,10 @@ builder.Services.AddSession(o=>{
  o.Cookie.IsEssential=true;o.IdleTimeout=TimeSpan.FromMinutes(30);
 });
 builder.Services.AddScoped<CartService>();builder.Services.AddScoped<BusinessEvents>();
+// Búsqueda semántica: modelo local ONNX + pgvector en PostgreSQL.
+builder.Services.AddSingleton<EmbeddingService>();
+builder.Services.AddScoped<ProductVectorStore>();
+builder.Services.AddHostedService<ProductEmbeddingIndexer>();
 builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
 builder.Services.AddAWSService<IAmazonS3>();
 builder.Services.AddAWSService<IAmazonSecretsManager>();
