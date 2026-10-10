@@ -363,6 +363,48 @@ Pestaña **Actions** → **Destruir AWS** → **Run workflow** → escribe `DEST
 
 **¿Por qué OIDC y no Access Keys?** GitHub pide a AWS credenciales **temporales** en cada ejecución; el rol solo acepta la rama `main` de **tu** repositorio. No hay claves guardadas que se puedan filtrar.
 
+### 📊 Telemetría: ver todos los servicios funcionando en UNA pantalla
+
+La plantilla crea un **dashboard de Amazon CloudWatch** llamado `URPOnline-URPOnlineLab` con todos los servicios juntos. Ábrelo desde **CloudFormation → URPOnlineLab → Outputs → `DashboardURL`** (o CloudWatch → **Dashboards**).
+
+| Panel | Servicio | Qué demuestra |
+|---|---|---|
+| Alarmas | CloudWatch Alarms | Verde = todo bien. Rojo si una EC2 no responde o hay errores 5xx |
+| Peticiones y errores 5xx · Tiempo de respuesta | **ALB** | La tienda recibe tráfico y responde rápido |
+| EC2 sanas detrás del balanceador | **ALB + Auto Scaling** | Hay 2 EC2 *healthy* |
+| CPU % y memoria % | **EC2** (agente de CloudWatch) | Carga de los servidores |
+| Conexiones y CPU % | **RDS PostgreSQL** | La base de datos en uso |
+| Conexiones y memoria % | **ElastiCache Redis** | Sesiones y carritos guardados |
+| Pedidos y ventas S/ | **La app con el AWS SDK** (`PutMetricData`) | La aplicación escribe en CloudWatch desde el código |
+| Peticiones y % de errores | **CloudFront** | El HTTPS y la caché |
+| Logs de la tienda | **CloudWatch Logs** | Cada línea con la EC2 que la generó |
+| Peticiones por EC2 | **CloudWatch Logs (Nginx)** | El ALB reparte entre las 2 EC2 |
+| Tráfico rechazado | **VPC Flow Logs** | Los security groups bloquean lo que no debe pasar |
+
+**Demo en clase (10 min):**
+
+1. Abre el dashboard y, en otra pestaña, la tienda (`ApplicationHTTPS`).
+2. Navega, busca (`tomar fotos`, `reloj deportivo`), agrega al carrito y **compra**. Repite 3 o 4 veces.
+3. En 1-2 minutos (botón ⟳ del dashboard) suben **Peticiones**, **Conexiones RDS**, **Redis** y **Pedidos / Ventas**; en *Logs de la tienda* aparecen tus peticiones con el ID de la EC2.
+4. **Prueba de alta disponibilidad:** consola → **EC2 → Instances** → elige una de las 2 → **Instance state → Terminate**. En el dashboard: *EC2 sanas* baja a 1 y la alarma se pone roja; Auto Scaling crea otra EC2 y en ~5 min vuelve a 2 y la alarma a verde. **La tienda nunca dejó de responder** y tu carrito sigue ahí (sesión en ElastiCache).
+
+**Reachability Analyzer (seguridad de la red):** en **CloudShell**, dentro de la carpeta del proyecto:
+
+```bash
+bash scripts/analizar-red.sh
+```
+
+Resultado esperado:
+
+```
+ALB -> EC2 : 80 (Nginx)                       ALCANZABLE ✅
+EC2 -> RDS : 5432 (PostgreSQL)                ALCANZABLE ✅
+Internet -> EC2 : 80 (saltando el ALB)        BLOQUEADO 🔒
+Internet -> RDS : 5432                        BLOQUEADO 🔒
+```
+
+Demuestra que **solo el ALB** llega a las EC2 y **solo las EC2** llegan a la base de datos. El detalle visual de cada ruta está en **VPC → Reachability Analyzer** (~0,10 USD por análisis).
+
 ### Borrar todo (¡obligatorio al terminar!)
 
 - **Con GitHub Actions:** pestaña **Actions → Destruir AWS → Run workflow** → escribe `DESTRUIR`.
