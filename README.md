@@ -202,6 +202,15 @@ El pie de cada página dice **"Servido por: ip-10-0-11-x"** o **"ip-10-0-12-x"**
                         ✅ / ❌ en la pestaña Actions
 ```
 
+#### Primer despliegue vs. los siguientes
+
+| | Qué hace CloudFormation | Tiempo |
+|---|---|---|
+| **Primer despliegue** | Crea **todo**: VPC, subredes, NAT, ALB, RDS, ElastiCache, S3, rol IAM y las EC2 | 20-30 min |
+| **Cada cambio siguiente** (`git push`) | Compara el YAML y ve que solo cambió el ZIP de la app → **solo reemplaza las EC2, de una en una** (rolling update). VPC, RDS (tus datos), Redis y ALB **no se tocan** | 10-15 min, sin caída |
+
+Si cambias el **YAML** (por ejemplo, agregas un recurso), CloudFormation actualiza solo ese recurso.
+
 #### ¿Qué es GitHub Actions?
 
 Es el servicio de GitHub que ejecuta esos pasos. Las instrucciones viven en archivos **YAML** dentro de [`.github/workflows/`](.github/workflows/) (cada archivo es un *workflow*). Este proyecto trae 3:
