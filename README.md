@@ -267,6 +267,43 @@ git push
 
 En **Actions** verás arrancar solos *CI - compilar y validar* y *Desplegar en AWS*. Cuando terminen, recarga la tienda: tu cambio está en AWS. Las EC2 se reemplazaron **de una en una** (Auto Scaling rolling update), así que la tienda nunca dejó de responder.
 
+#### Alternativa: configurarlo todo desde VS Code (terminal + GitHub CLI)
+
+Si prefieres no usar la web de GitHub, los pasos 1, 3, 4 y 5 se hacen con la **GitHub CLI (`gh`)** en la terminal de VS Code:
+
+```powershell
+# Instalar GitHub CLI (una vez) y cerrar/abrir VS Code
+winget install GitHub.cli
+
+# Iniciar sesión en GitHub con permiso para workflows (abre el navegador: pega el código que muestra y "Authorize")
+gh auth login --web --scopes workflow
+
+# Paso 1: crear tu fork y clonarlo en la carpeta actual
+gh repo fork jjjfrancia/tiendaonline --clone
+cd tiendaonline
+code . -r
+
+# Paso 2 (AWS): crear el rol OIDC — mismos comandos de la sección anterior, con GitHubOwner=TU_USUARIO
+
+# Paso 3: guardar los 2 secretos (te pide pegar cada valor; no se muestran)
+gh secret set AWS_ROLE_ARN
+gh secret set DB_PASSWORD
+
+# Paso 4: activar los workflows del fork
+gh workflow enable ci.yml
+gh workflow enable deploy-aws.yml
+gh workflow enable destroy-aws.yml
+
+# Paso 5: lanzar el despliegue y verlo en vivo en la terminal
+gh workflow run deploy-aws.yml
+gh run watch
+
+# Al terminar la clase: borrar todo
+gh workflow run destroy-aws.yml -f confirmar=DESTRUIR
+```
+
+**Ver las ejecuciones dentro de VS Code:** instala la extensión **GitHub Actions** (`github.vscode-github-actions`; VS Code la sugiere al abrir el proyecto). En la barra lateral aparece un icono de **GitHub Actions**: muestra cada workflow, su estado ✅/❌ y los logs de cada paso, y permite relanzarlos con clic derecho → **Run workflow**.
+
 #### Leer los resultados
 
 | Ves | Significa | Qué hacer |

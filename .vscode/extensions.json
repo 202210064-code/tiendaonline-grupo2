@@ -7,6 +7,7 @@
     "kddejong.vscode-cfn-lint",
     "mtxr.sqltools",
     "mtxr.sqltools-driver-pg",
-    "anthropic.claude-code"
+    "anthropic.claude-code",
+    "github.vscode-github-actions"
   ]
 }
