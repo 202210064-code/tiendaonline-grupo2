@@ -33,6 +33,12 @@ Parameters:
   AppMax:
     Type: Number
     Default: 4
+  DBBackupRetentionDays:
+    Type: Number
+    Default: 1
+    MinValue: 0
+    MaxValue: 35
+    Description: Días de respaldo automático de RDS (cuentas del plan gratuito de AWS admiten como máximo 1; con 0 se desactiva)
   EnableMultiAZ:
     Type: String
     Default: 'true'
@@ -150,7 +156,7 @@ Resources:
       DBSubnetGroupName: !Ref DBSubnet
       VPCSecurityGroups: [!Ref DbSG]
       PubliclyAccessible: false
-      BackupRetentionPeriod: 7
+      BackupRetentionPeriod: !Ref DBBackupRetentionDays
       MultiAZ: !If [MultiAZ,true,false]
       StorageEncrypted: true
   RedisSubnet:

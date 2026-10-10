@@ -126,6 +126,8 @@ Puedes cerrar CloudShell mientras se crea: sigue en AWS. Avance en **CloudFormat
 
 Además, hay dos formas de hacerlo desde tu PC. **Haz primero la A** (para entender cada paso); después automatiza con la B.
 
+> 🆓 **Cuentas del plan gratuito de AWS:** la plantilla ya viene ajustada (respaldo de RDS de **1 día**, instancias pequeñas t3.small / db.t3.micro / cache.t3.micro, RDS sin Multi-AZ). Si AWS rechaza algo por el plan gratuito, el motivo aparece en **CloudFormation → Events** (ej.: *exceeds the maximum available to free tier customers*).
+>
 > ⚠️ **Cuesta dinero mientras exista** (NAT, ALB, EC2, RDS, Redis). Al terminar la clase **bórrala** (ver "Borrar todo" al final de esta sección).
 
 ### A) A mano con la AWS CLI
@@ -177,43 +179,107 @@ El pie de cada página dice **"Servido por: ip-10-0-11-x"** o **"ip-10-0-12-x"**
 
 **Publicar una versión nueva:** repite el paso 1 y 2 con otro nombre (`urponline-v2.zip`) y el paso 3 con `ArtifactKey=releases/urponline-v2.zip`. CloudFormation reemplaza las EC2 **de una en una** sin tumbar la tienda.
 
-### B) Automático con GitHub Actions (cada push despliega)
+### B) Automático con GitHub Actions: CI/CD (cada cambio se compila, se valida y se despliega solo)
 
-En la carpeta [`.github/workflows/`](.github/workflows/) hay 3 workflows que ejecutan **los mismos comandos** de la opción A:
+#### ¿Qué es CI/CD y para qué sirve?
 
-| Workflow | Cuándo corre | Qué hace |
+- **CI — Integración Continua:** cada vez que alguien sube un cambio a GitHub (`git push`), un servidor de GitHub **compila la aplicación y revisa la plantilla YAML automáticamente**. Si algo está roto, lo marca con una ❌ roja en minutos, **antes** de que llegue a AWS.
+- **CD — Despliegue Continuo:** si la compilación sale bien, **el mismo servidor sube la nueva versión a AWS** (S3 + CloudFormation) sin que nadie ejecute comandos a mano.
+
+**¿Por qué importa?** Sin CI/CD, cada versión exige repetir a mano los pasos de la opción A (compilar, zip, subir a S3, `cloudformation deploy`): es lento y es fácil equivocarse. Con CI/CD: **cambias código → `git push` → en ~20 min la tienda nueva está en AWS**, y cada paso queda registrado (quién, cuándo, qué se desplegó).
+
+```
+ Tú (VS Code)          GitHub                          AWS
+ ───────────           ──────────────────────          ──────────────────────────
+ git push   ───────►   GitHub Actions
+                        1. compila .NET  (CI)
+                        2. valida el YAML (CI)
+                        3. arma el ZIP
+                        4. sube el ZIP  ─────────────►  S3
+                        5. cloudformation deploy ────►  CloudFormation actualiza
+                                                        EC2 (de una en una), ALB...
+                        6. prueba /health ◄───────────  ALB responde
+                        ✅ / ❌ en la pestaña Actions
+```
+
+#### ¿Qué es GitHub Actions?
+
+Es el servicio de GitHub que ejecuta esos pasos. Las instrucciones viven en archivos **YAML** dentro de [`.github/workflows/`](.github/workflows/) (cada archivo es un *workflow*). Este proyecto trae 3:
+
+| Archivo | Nombre en GitHub | Cuándo corre | Qué hace | ¿Usa AWS? |
+|---|---|---|---|---|
+| `ci.yml` | *CI - compilar y validar* | Cada `git push` y cada pull request | Compila .NET y valida los YAML de CloudFormation con `cfn-lint` | No (gratis) |
+| `deploy-aws.yml` | *Desplegar en AWS* | Cada `git push` a `main` (o con el botón **Run workflow**) | Compila para Linux, sube el ZIP a S3, ejecuta `aws cloudformation deploy`, prueba `/health` en el ALB y muestra la URL | Sí |
+| `destroy-aws.yml` | *Destruir AWS* | Solo a mano, escribiendo `DESTRUIR` | Borra la pila para dejar de pagar | Sí |
+
+> Los workflows ejecutan **exactamente los mismos comandos de la AWS CLI** de la opción A; solo que los corre un servidor de GitHub en vez de tu PC. Ábrelos en VS Code: cada paso tiene un `name:` que explica qué hace.
+
+#### ¿Cómo entra GitHub a tu cuenta de AWS? (OIDC, sin Access Keys)
+
+GitHub necesita permiso para crear recursos en **tu** cuenta. En lugar de guardar tu Access Key en GitHub (peligroso si se filtra), se usa **OIDC**: creas en AWS un **rol IAM** que dice *"confío en GitHub, pero solo en la rama `main` del repositorio `TU_USUARIO/tiendaonline`"*. En cada ejecución GitHub pide a AWS credenciales **temporales** (duran minutos) para ese rol. Ese rol lo crea la plantilla [`infra/github-oidc.yaml`](infra/github-oidc.yaml).
+
+#### Configúralo en TU GitHub, paso a paso (una sola vez, ~15 min)
+
+**Paso 1 — Crea tu copia del repositorio (fork).**
+Entra a https://github.com/jjjfrancia/tiendaonline (con tu cuenta de GitHub iniciada) → botón **Fork** (arriba a la derecha) → **Create fork**. Ahora tienes `https://github.com/TU_USUARIO/tiendaonline`: ahí correrán **tus** workflows contra **tu** AWS.
+
+**Paso 2 — Crea en AWS el rol para GitHub (OIDC).** Elige una forma:
+
+- **Con la consola de AWS (sin terminal):**
+  1. Descarga el archivo [`infra/github-oidc.yaml`](infra/github-oidc.yaml) (botón *Download raw file*).
+  2. Consola de AWS (región **Ohio**) → **CloudFormation → Create stack → With new resources** → **Upload a template file** → elige `github-oidc.yaml` → **Next**.
+  3. **Stack name:** `urponline-github-oidc` · **GitHubOwner:** tu usuario de GitHub · **RepoName:** `tiendaonline` → **Next** → **Next**.
+  4. Marca *"I acknowledge that AWS CloudFormation might create IAM resources with custom names"* → **Submit**.
+  5. Cuando diga `CREATE_COMPLETE` (≈1 min) → pestaña **Outputs** → copia el valor de **`RoleArn`** (`arn:aws:iam::123456789012:role/urponline-github-deploy-tiendaonline`).
+- **Con CloudShell** (icono `>_` en la consola de AWS):
+  ```bash
+  git clone https://github.com/TU_USUARIO/tiendaonline.git && cd tiendaonline
+  aws cloudformation deploy --stack-name urponline-github-oidc --region us-east-2 \
+    --template-file infra/github-oidc.yaml --capabilities CAPABILITY_NAMED_IAM \
+    --parameter-overrides GitHubOwner=TU_USUARIO RepoName=tiendaonline
+  aws cloudformation describe-stacks --stack-name urponline-github-oidc --region us-east-2 \
+    --query "Stacks[0].Outputs[0].OutputValue" --output text
+  ```
+
+> Si sale *"Provider with url https://token.actions.githubusercontent.com already exists"*: tu cuenta ya tenía la conexión. Repite con el parámetro **CreateOidcProvider = false**.
+
+**Paso 3 — Guarda 2 secretos en tu fork.** Los *secrets* son valores privados que los workflows pueden usar pero que nadie ve (ni en los logs).
+En GitHub → **tu** repositorio → **Settings** (pestaña de arriba) → menú izquierdo **Secrets and variables → Actions** → botón **New repository secret**. Crea estos dos:
+
+| Name | Secret |
+|---|---|
+| `AWS_ROLE_ARN` | el `RoleArn` del paso 2 |
+| `DB_PASSWORD` | una contraseña para la base de datos RDS: **12 o más caracteres, solo letras y números** (ej. `UrpTienda2026Clave`) |
+
+(Opcional) Si no usas Ohio: pestaña **Variables** → **New repository variable** → `AWS_REGION` = `us-east-1`.
+
+**Paso 4 — Activa Actions en tu fork.** En los forks GitHub los deja apagados por seguridad: pestaña **Actions** → botón verde *"I understand my workflows, go ahead and enable them"*.
+
+**Paso 5 — Primer despliegue.** Pestaña **Actions** → en la izquierda **Desplegar en AWS** → botón **Run workflow** → **Run workflow**. Haz clic en la ejecución que aparece para ver cada paso en vivo (≈25 min la primera vez, porque crea toda la infraestructura). Al terminar, abre el **Summary**: muestra la **URL de la tienda** y las EC2 *healthy* detrás del ALB.
+
+**Paso 6 — Comprueba el CI/CD con un cambio real.** En VS Code (con tu fork clonado) cambia un texto, por ejemplo en `Views/Home/Index.cshtml`, y súbelo:
+
+```powershell
+git add .
+git commit -m "Cambio mi primer texto"
+git push
+```
+
+En **Actions** verás arrancar solos *CI - compilar y validar* y *Desplegar en AWS*. Cuando terminen, recarga la tienda: tu cambio está en AWS. Las EC2 se reemplazaron **de una en una** (Auto Scaling rolling update), así que la tienda nunca dejó de responder.
+
+#### Leer los resultados
+
+| Ves | Significa | Qué hacer |
 |---|---|---|
-| `ci.yml` — *CI - compilar y validar* | Cada push y pull request | Compila y valida los YAML con `cfn-lint` (no usa AWS) |
-| `deploy-aws.yml` — *Desplegar en AWS* | Cada push a `main` (y manual) | Compila, sube el ZIP a S3, `cloudformation deploy`, prueba `/health` en el ALB |
-| `destroy-aws.yml` — *Destruir AWS* | Solo manual, escribiendo `DESTRUIR` | Borra la pila para dejar de pagar |
+| ✅ verde | Todo salió bien | Abre el **Summary** para la URL |
+| ❌ rojo en *CI* | El código no compila o el YAML tiene un error | Clic en el paso rojo → lee el mensaje → corrige → `git push` |
+| ❌ *Falta el secreto AWS_ROLE_ARN* | No hiciste el paso 3 | Crea el secreto y pulsa **Re-run jobs** |
+| ❌ *Not authorized to perform sts:AssumeRoleWithWebIdentity* | `GitHubOwner` del paso 2 no coincide con tu usuario, o el push no fue a `main` | Revisa el usuario en la pila `urponline-github-oidc` |
+| ❌ en *Crear o actualizar la pila* | CloudFormation falló | Consola de AWS → CloudFormation → `URPOnlineLab` → **Events** → la primera línea roja dice el motivo |
 
-**Configúralo en TU GitHub (una sola vez):**
+#### Al terminar la clase
 
-1. **Haz un fork:** en https://github.com/jjjfrancia/tiendaonline pulsa **Fork** → se crea `https://github.com/TU_USUARIO/tiendaonline`.
-2. **Conecta GitHub con tu AWS sin Access Keys (OIDC).** Clona **tu fork** y ábrelo en VS Code:
-   ```powershell
-   git clone https://github.com/TU_USUARIO/tiendaonline.git
-   cd tiendaonline
-   code .
-   ```
-   En VS Code abre **Terminal → New Terminal** (debe mostrar `PS C:\...\tiendaonline>`) y pega, cambiando `TU_USUARIO` por tu usuario de GitHub (requiere la AWS CLI ya configurada, sección "Conectar tu equipo a tu cuenta de AWS"):
-   ```powershell
-   aws cloudformation deploy --stack-name urponline-github-oidc --region us-east-2 `
-     --template-file infra/github-oidc.yaml --capabilities CAPABILITY_NAMED_IAM `
-     --parameter-overrides GitHubOwner=TU_USUARIO RepoName=tiendaonline
-   aws cloudformation describe-stacks --stack-name urponline-github-oidc --region us-east-2 --query "Stacks[0].Outputs[0].OutputValue" --output text
-   ```
-   Copia el valor que empieza con `arn:aws:iam::...:role/urponline-github-deploy-tiendaonline`.
-   > Si da error *"Provider with url ... already exists"*, añade `CreateOidcProvider=false` a `--parameter-overrides`.
-3. **Guarda 2 secretos en tu fork:** GitHub → tu repo → **Settings → Secrets and variables → Actions → New repository secret**:
-   | Nombre | Valor |
-   |---|---|
-   | `AWS_ROLE_ARN` | el ARN del paso 2 |
-   | `DB_PASSWORD` | contraseña de RDS (12+ caracteres, solo letras y números) |
-
-   Opcional, en la pestaña **Variables**: `AWS_REGION` = `us-east-1` si no usas Ohio.
-4. **Activa Actions en tu fork:** pestaña **Actions** → *"I understand my workflows, go ahead and enable them"*.
-5. **Despliega:** haz un cambio (por ejemplo, un texto en `Views/Home/Index.cshtml`), `git commit` y `git push`. En la pestaña **Actions** verás *Desplegar en AWS* corriendo paso a paso; al final, el **resumen** muestra la **URL de la tienda** y las EC2 *healthy*. (También puedes lanzarlo con **Run workflow**.)
+Pestaña **Actions** → **Destruir AWS** → **Run workflow** → escribe `DESTRUIR` → **Run workflow**. Borra la pila para no seguir gastando.
 
 **¿Por qué OIDC y no Access Keys?** GitHub pide a AWS credenciales **temporales** en cada ejecución; el rol solo acepta la rama `main` de **tu** repositorio. No hay claves guardadas que se puedan filtrar.
 
