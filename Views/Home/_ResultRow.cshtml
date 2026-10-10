@@ -1,0 +1,16 @@
+@model Product
+@{ double? similarity = ViewData["Similarity"] as double?; }
+<article class="result-row">
+ <div class="row-art">@Model.Emoji</div>
+ <div class="row-info">
+  <h3>@Model.Name</h3>
+  <p class="row-meta">en <a asp-action="Index" asp-route-category="@Model.Category">@Model.Category</a></p>
+  <p class="desc">@Model.Description</p>
+  @if(similarity is double s){<p class="similarity" title="Similitud coseno entre tu búsqueda y el producto (pgvector)">Similitud semántica: <b>@((s*100).ToString("N0"))%</b></p>}
+  <div class="price"><sup>S/</sup>@Math.Floor(Model.Price).ToString("N0")<sup>@((Model.Price % 1 * 100).ToString("00"))</sup></div>
+  @if(Model.Stock==0){<p class="stock out">No disponible por el momento</p>}
+  else if(Model.Stock<=5){<p class="stock low">Solo quedan @Model.Stock en stock</p>}
+  else{<p class="stock in">En stock</p>}
+  <form asp-controller="Cart" asp-action="Add" method="post"><input type="hidden" name="id" value="@Model.Id"/><input type="hidden" name="quantity" value="1"/><button class="btn-cart row-btn" disabled="@(Model.Stock==0)">Agregar al carrito</button></form>
+ </div>
+</article>

@@ -15,7 +15,10 @@
    <option value="">Todos</option>
    @foreach(var cat in categories){ if(cat==currentCategory){<option selected value="@cat">@cat</option>}else{<option value="@cat">@cat</option>} }
   </select>
-  <input name="q" value="@currentQuery" placeholder="Buscar en URPOnline" aria-label="Buscar"/>
+  <div class="search-box">
+   <input id="search-input" name="q" value="@currentQuery" placeholder="Buscar en URPOnline" aria-label="Buscar" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="search-suggestions" aria-autocomplete="list"/>
+   <ul id="search-suggestions" class="suggestions" role="listbox" hidden></ul>
+  </div>
   <button type="submit" aria-label="Buscar">🔍</button>
  </form>
  <a class="cart-link" asp-controller="Cart" asp-action="Index"><span class="cart-icon">🛒<b>@cartCount</b></span><span class="cart-text">Carrito</span></a>
@@ -29,4 +32,5 @@
  <a class="back-top" href="#top">Volver arriba</a>
  <div class="footer-body"><span class="brand small">URP<span>Online</span></span><p>E-commerce de laboratorio · AWS VPC/DMZ · ASP.NET Core MVC</p></div>
 </footer>
+<script src="~/js/search.js" asp-append-version="true"></script>
 </body></html>
