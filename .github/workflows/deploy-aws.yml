@@ -1,0 +1,104 @@
+# Despliegue continuo: cada push a main compila, sube el ZIP a S3 y crea/actualiza la pila de CloudFormation.
+# Son los MISMOS comandos de la AWS CLI que puedes ejecutar a mano (ver README, "Desplegar en AWS").
+#
+# Requisitos (una vez, ver README):
+#   - Secreto AWS_ROLE_ARN : salida RoleArn de infra/github-oidc.yaml
+#   - Secreto DB_PASSWORD  : contraseña de RDS (12+ caracteres, solo letras y números)
+#   - Variable AWS_REGION  : opcional, por defecto us-east-2 (Ohio)
+#
+# ⚠️ La pila cuesta dinero mientras exista. Bórrala con el workflow "Destruir AWS".
+name: Desplegar en AWS
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'RUTA_DEL_CURSO/**', '.vscode/**']
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-aws
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # necesario para OIDC (GitHub -> AWS sin Access Keys)
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+  STACK_NAME: URPOnlineLab
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Comprobar secretos
+        env:
+          ROLE: ${{ secrets.AWS_ROLE_ARN }}
+          PASS: ${{ secrets.DB_PASSWORD }}
+        run: |
+          [ -n "$ROLE" ] || { echo "::error::Falta el secreto AWS_ROLE_ARN (ver README)"; exit 1; }
+          [ -n "$PASS" ] || { echo "::error::Falta el secreto DB_PASSWORD (ver README)"; exit 1; }
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Descargar modelo de búsqueda semántica
+        run: bash scripts/descargar-modelo.sh
+
+      - name: Compilar y publicar para Linux (EC2)
+        run: |
+          dotnet publish TiendaOnline.csproj -c Release -r linux-x64 --self-contained false -o out
+          test -f out/TiendaOnline.dll
+          (cd out && zip -qr ../urponline-publish.zip .)
+          ls -lh urponline-publish.zip
+
+      - name: Conectar con AWS (OIDC, sin Access Keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Subir el ZIP a S3
+        run: |
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET="urponline-artefactos-${ACCOUNT}-${AWS_REGION}"
+          KEY="releases/urponline-${GITHUB_SHA}.zip"
+          if ! aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
+            aws s3 mb "s3://$BUCKET" --region "$AWS_REGION"
+            aws s3api put-public-access-block --bucket "$BUCKET" --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+          fi
+          aws s3 cp urponline-publish.zip "s3://$BUCKET/$KEY"
+          echo "BUCKET=$BUCKET" >> "$GITHUB_ENV"
+          echo "KEY=$KEY" >> "$GITHUB_ENV"
+
+      - name: Validar plantilla contra AWS
+        run: aws cloudformation validate-template --template-body file://infra/urponline-oneclick.yaml > /dev/null
+
+      - name: Crear o actualizar la pila (CloudFormation)
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          aws cloudformation deploy \
+            --stack-name "$STACK_NAME" \
+            --template-file infra/urponline-oneclick.yaml \
+            --capabilities CAPABILITY_IAM \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides ArtifactBucket="$BUCKET" ArtifactKey="$KEY" DBPassword="$DB_PASSWORD" EnableMultiAZ=false
+
+      - name: Probar la tienda a través del ALB
+        run: |
+          URL=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='ApplicationHTTP'].OutputValue" --output text)
+          TG=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='TargetGroupArn'].OutputValue" --output text)
+          curl --fail --retry 20 --retry-delay 15 --retry-all-errors "$URL/health"
+          echo "## 🛒 Tienda desplegada en AWS" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**URL:** $URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**EC2 detrás del ALB:**" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          aws elbv2 describe-target-health --target-group-arn "$TG" --query "TargetHealthDescriptions[].[Target.Id,TargetHealth.State]" --output text | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

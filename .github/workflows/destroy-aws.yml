@@ -1,0 +1,62 @@
+# Borra la pila de AWS para dejar de pagar. Solo se ejecuta a mano (Actions -> Destruir AWS -> Run workflow)
+# y exige escribir DESTRUIR para confirmar.
+name: Destruir AWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Escribe DESTRUIR para borrar la pila URPOnlineLab'
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+  STACK_NAME: URPOnlineLab
+
+jobs:
+  destroy:
+    if: ${{ github.event.inputs.confirmar == 'DESTRUIR' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Conectar con AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Vaciar el bucket de proveedores (tiene versionado)
+        run: |
+          B=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='S3SupplierBucket'].OutputValue" --output text 2>/dev/null || true)
+          if [ -n "$B" ] && [ "$B" != "None" ]; then
+            python3 - "$B" <<'PY'
+          import json, subprocess, sys
+          bucket = sys.argv[1]
+          while True:
+              out = json.loads(subprocess.check_output(["aws", "s3api", "list-object-versions", "--bucket", bucket, "--max-items", "1000", "--output", "json"]) or b"{}")
+              objs = [{"Key": o["Key"], "VersionId": o["VersionId"]} for o in out.get("Versions", []) + out.get("DeleteMarkers", [])]
+              if not objs:
+                  break
+              subprocess.check_call(["aws", "s3api", "delete-objects", "--bucket", bucket, "--delete", json.dumps({"Objects": objs, "Quiet": True})])
+          PY
+          fi
+
+      - name: Borrar la pila
+        run: |
+          aws cloudformation delete-stack --stack-name "$STACK_NAME"
+          aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
+          echo "## 🧹 Pila borrada" >> "$GITHUB_STEP_SUMMARY"
+          echo "RDS dejó un **snapshot final** (DeletionPolicy: Snapshot) que sigue costando: bórralo en RDS → Snapshots." >> "$GITHUB_STEP_SUMMARY"
+          echo "El bucket de artefactos (urponline-artefactos-...) se conserva; bórralo con: aws s3 rb s3://NOMBRE --force" >> "$GITHUB_STEP_SUMMARY"
+
+  confirmacion-incorrecta:
+    if: ${{ github.event.inputs.confirmar != 'DESTRUIR' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::No se borró nada: debes escribir exactamente DESTRUIR"
+          exit 1

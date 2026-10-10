@@ -1,0 +1,28 @@
+# Integración continua: en cada push y pull request compila la app y valida las plantillas CloudFormation.
+# No usa AWS ni cuesta nada.
+name: CI - compilar y validar
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restaurar librerías .NET (NuGet)
+        run: dotnet restore TiendaOnline.csproj
+
+      - name: Compilar
+        run: dotnet build TiendaOnline.csproj -c Release --no-restore
+
+      - name: Validar plantillas CloudFormation (cfn-lint)
+        run: |
+          pip install --quiet cfn-lint
+          cfn-lint --non-zero-exit-code error infra/urponline-oneclick.yaml infra/github-oidc.yaml
