@@ -20,7 +20,8 @@ if(!string.IsNullOrWhiteSpace(redis))
  dataProtection.PersistKeysToStackExchangeRedis(StackExchange.Redis.ConnectionMultiplexer.Connect(redis),"URPOnline-DataProtection-Keys");
 builder.Services.AddSession(o=>{
  o.Cookie.Name=".URPOnline.Session";o.Cookie.HttpOnly=true;
- o.Cookie.SecurePolicy=builder.Environment.IsDevelopment()?CookieSecurePolicy.SameAsRequest:CookieSecurePolicy.Always;o.Cookie.SameSite=SameSiteMode.Lax;
+ // SameAsRequest: la cookie es Secure cuando el visitante entra por HTTPS (ALB con ACM o CloudFront); en el laboratorio el ALB usa HTTP.
+ o.Cookie.SecurePolicy=CookieSecurePolicy.SameAsRequest;o.Cookie.SameSite=SameSiteMode.Lax;
  o.Cookie.IsEssential=true;o.IdleTimeout=TimeSpan.FromMinutes(30);
 });
 builder.Services.AddScoped<CartService>();builder.Services.AddScoped<BusinessEvents>();
