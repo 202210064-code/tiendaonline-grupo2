@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
 using Amazon.S3;
 using Amazon.SecretsManager;
 using Amazon.CloudWatch;

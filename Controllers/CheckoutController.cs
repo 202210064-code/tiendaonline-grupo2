@@ -40,14 +40,8 @@ public class CheckoutController(ShopDbContext db,CartService cart,BusinessEvents
    var promo=await db.Promotions.AsNoTracking().Where(x=>x.Enabled && x.StartsUtc<=now && x.EndsUtc>now)
       .OrderByDescending(x=>x.DiscountPercent).FirstOrDefaultAsync();
    if(promo!=null) order.Total=Math.Round(order.Total*(100m-promo.DiscountPercent)/100m,2);
-   // Apply the largest active promotion consistently to new orders.
-   var now=DateTime.UtcNow;
-   var promo=await db.Promotions.AsNoTracking().Where(x=>x.Enabled && x.StartsUtc<=now && x.EndsUtc>now)
-      .OrderByDescending(x=>x.DiscountPercent).FirstOrDefaultAsync();
-   if(promo!=null) order.Total=Math.Round(order.Total*(100m-promo.DiscountPercent)/100m,2);
    db.Orders.Add(order); await db.SaveChangesAsync(); await tx.CommitAsync();
    cart.Clear(HttpContext.Session);
-   await events.RecordAsync("order_created",orderId:order.Id,amount:order.Total);
    await events.RecordAsync("order_created",orderId:order.Id,amount:order.Total);
    return RedirectToAction("Success",new{id=order.Id});
   } catch {

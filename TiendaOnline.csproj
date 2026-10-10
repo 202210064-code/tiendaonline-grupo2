@@ -3,9 +3,9 @@
   <ItemGroup><Compile Remove="Worker/**/*.cs" /></ItemGroup><ItemGroup>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="8.0.0" />
-    <PackageReference Include="AWS.Extensions.NETCore.Setup" Version="3.7.7" />
-    <PackageReference Include="AWSSDK.S3" Version="3.7.400.35" />
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.400" />
+    <PackageReference Include="AWSSDK.S3" Version="3.7.401" />
     <PackageReference Include="AWSSDK.SecretsManager" Version="3.7.400.35" />
-    <PackageReference Include="AWSSDK.CloudWatch" Version="3.7.400.35" />
+    <PackageReference Include="AWSSDK.CloudWatch" Version="3.7.401" />
   </ItemGroup>
 </Project>

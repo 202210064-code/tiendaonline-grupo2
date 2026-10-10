@@ -104,7 +104,16 @@ Archivos importantes:
 
 ## 4. (Opcional) Ejecutar en tu equipo
 
-Necesitas PostgreSQL y Redis ejecutándose en local. Crea la base de datos y el usuario:
+Necesitas PostgreSQL y Redis ejecutándose en local. La forma más rápida es con **Docker Desktop** (debe estar abierto):
+
+```powershell
+docker run -d --name urp-postgres -e POSTGRES_USER=urponline -e POSTGRES_PASSWORD=localonly -e POSTGRES_DB=urponline -p 5432:5432 postgres:16
+docker run -d --name urp-redis -p 6379:6379 redis:7
+```
+
+> Para volver a encenderlos otro día: `docker start urp-postgres urp-redis`.
+
+Si en lugar de Docker instalaste PostgreSQL directamente, crea la base de datos y el usuario:
 
 ```sql
 CREATE USER urponline WITH PASSWORD 'localonly';
@@ -121,6 +130,13 @@ dotnet run --urls http://localhost:8080
 ```
 
 Abre `http://localhost:8080` y `http://localhost:8080/health`; este último debe responder `{"status":"ok"}`. En las siguientes ejecuciones, omite `InitializeDatabase`.
+
+Para entrar a los paneles de prueba, define las claves antes de `dotnet run`:
+
+```powershell
+$env:Dashboard__AccessKey = "demo-dashboard"   # → http://localhost:8080/Analytics?key=demo-dashboard
+$env:Admin__AccessKey     = "demo-admin"       # → http://localhost:8080/admin/promotions?key=demo-admin
+```
 
 Si no tienes Redis, en modo `Development` la app usa caché en memoria cuando la cadena de Redis está en blanco. En PowerShell, asígnale un **espacio** (una cadena vacía `""` borra la variable y la app volvería a usar `localhost:6379`): `$env:ConnectionStrings__Redis = " "`.
 
