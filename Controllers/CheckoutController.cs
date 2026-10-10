@@ -5,7 +5,7 @@ using TiendaOnline.Data;
 using TiendaOnline.Models;
 using TiendaOnline.Services;
 namespace TiendaOnline.Controllers;
-public class CheckoutController(ShopDbContext db,CartService cart,BusinessEvents events):Controller {
+public class CheckoutController(ShopDbContext db,CartService cart,BusinessEvents events,BusinessMetrics metrics):Controller {
  [HttpGet] public async Task<IActionResult> Index() {
   var vm=await cart.ViewAsync(HttpContext.Session);
   if(vm.Lines.Count==0) return RedirectToAction("Index","Cart");
@@ -43,6 +43,7 @@ public class CheckoutController(ShopDbContext db,CartService cart,BusinessEvents
    db.Orders.Add(order); await db.SaveChangesAsync(); await tx.CommitAsync();
    cart.Clear(HttpContext.Session);
    await events.RecordAsync("order_created",orderId:order.Id,amount:order.Total);
+   await metrics.OrderCreatedAsync(order.Total,HttpContext.RequestAborted);
    return RedirectToAction("Success",new{id=order.Id});
   } catch {
    await tx.RollbackAsync(); throw;

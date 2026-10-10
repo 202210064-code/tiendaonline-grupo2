@@ -182,7 +182,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument: {Version: '2012-10-17',Statement: [{Effect: Allow,Principal: {Service: ec2.amazonaws.com},Action: 'sts:AssumeRole'}]}
-      ManagedPolicyArns: ['arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore']
+      ManagedPolicyArns: ['arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore', 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy']
       Policies:
         - PolicyName: URPOnlineS3Read
           PolicyDocument:
@@ -194,6 +194,38 @@ Resources:
               - Effect: Allow
                 Action: ['s3:GetObject']
                 Resource: !Sub 'arn:${AWS::Partition}:s3:::${ArtifactBucket}/${ArtifactKey}'
+  # VPC Flow Logs: registra el tráfico aceptado y rechazado de toda la VPC en CloudWatch Logs.
+  FlowLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: {LogGroupName: !Sub '/urponline/${AWS::StackName}/vpc-flow-logs', RetentionInDays: 3}
+  FlowLogRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: {Version: '2012-10-17', Statement: [{Effect: Allow, Principal: {Service: vpc-flow-logs.amazonaws.com}, Action: 'sts:AssumeRole'}]}
+      Policies:
+        - PolicyName: EscribirFlowLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['logs:CreateLogStream', 'logs:PutLogEvents', 'logs:DescribeLogGroups', 'logs:DescribeLogStreams']
+                Resource: !GetAtt FlowLogGroup.Arn
+  VpcFlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      ResourceId: !Ref VPC
+      ResourceType: VPC
+      TrafficType: ALL
+      LogDestinationType: cloud-watch-logs
+      LogGroupName: !Ref FlowLogGroup
+      DeliverLogsPermissionArn: !GetAtt FlowLogRole.Arn
+      MaxAggregationInterval: 60
+  AppLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: {LogGroupName: !Sub '/urponline/${AWS::StackName}/app', RetentionInDays: 7}
+  NginxLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: {LogGroupName: !Sub '/urponline/${AWS::StackName}/nginx-access', RetentionInDays: 7}
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties: {Roles: [!Ref AppRole]}
@@ -267,8 +299,12 @@ Resources:
             ConnectionStrings__Redis=${Redis.PrimaryEndPoint.Address}:6379,ssl=true,abortConnect=false
             # Aplica las migraciones EF Core (tablas + pgvector + índice HNSW) al arrancar; un bloqueo en PostgreSQL evita que 2 EC2 migren a la vez.
             InitializeDatabase=true
+            # La app publica sus métricas de negocio (pedidos, ventas) en CloudWatch con el AWS SDK.
+            Metrics__CloudWatchEnabled=true
+            AWS__Region=${AWS::Region}
             ENV
             chmod 600 /etc/urponline.env
+            mkdir -p /var/log/urponline && chown nginx:nginx /var/log/urponline
             cat >/etc/systemd/system/urponline.service <<'SYSTEMD'
             [Unit]
             Description=URPOnline ASP.NET Core
@@ -279,6 +315,8 @@ Resources:
             EnvironmentFile=/etc/urponline.env
             ExecStart=/usr/bin/dotnet /opt/urponline/TiendaOnline.dll
             Restart=always
+            StandardOutput=append:/var/log/urponline/app.log
+            StandardError=append:/var/log/urponline/app.log
             RestartSec=5
             User=nginx
             Group=nginx
@@ -314,6 +352,16 @@ Resources:
             systemctl daemon-reload
             systemctl enable --now urponline
             systemctl enable --now nginx
+            # Agente de CloudWatch: logs de la tienda y de Nginx (un log stream por EC2) + memoria y disco.
+            cat >/opt/aws/amazon-cloudwatch-agent/etc/urponline.json <<'CWA'
+            {"logs":{"logs_collected":{"files":{"collect_list":[
+              {"file_path":"/var/log/urponline/app.log","log_group_name":"${AppLogGroup}","log_stream_name":"{instance_id}"},
+              {"file_path":"/var/log/nginx/access.log","log_group_name":"${NginxLogGroup}","log_stream_name":"{instance_id}"}]}}},
+             "metrics":{"namespace":"URPOnline/EC2","append_dimensions":{"AutoScalingGroupName":"${!aws:AutoScalingGroupName}"},
+              "aggregation_dimensions":[["AutoScalingGroupName"]],
+              "metrics_collected":{"mem":{"measurement":["mem_used_percent"]},"disk":{"measurement":["used_percent"],"resources":["/"]}}}}
+            CWA
+            /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/urponline.json
             curl --retry 20 --retry-delay 3 --retry-connrefused --fail http://127.0.0.1:8080/health
             # La tienda responde: avisa a CloudFormation que esta EC2 está lista.
             /opt/aws/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource Scaling --region ${AWS::Region}
@@ -334,8 +382,67 @@ Resources:
       HealthCheckGracePeriod: 300
       TargetGroupARNs: [!Ref TG]
       LaunchTemplate: {LaunchTemplateId: !Ref Launch,Version: !GetAtt Launch.LatestVersionNumber}
+  # Alarmas: se ponen en rojo si una EC2 deja de responder al ALB o si la tienda devuelve errores 5xx.
+  UnhealthyHostsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-EC2-no-saludables'
+      AlarmDescription: Hay EC2 detrás del ALB que no responden /health
+      Namespace: AWS/ApplicationELB
+      MetricName: UnHealthyHostCount
+      Dimensions:
+        - {Name: LoadBalancer, Value: !GetAtt ALB.LoadBalancerFullName}
+        - {Name: TargetGroup, Value: !GetAtt TG.TargetGroupFullName}
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+  Errors5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AWS::StackName}-errores-5xx'
+      AlarmDescription: La tienda devolvió más de 5 errores 5xx en 5 minutos
+      Namespace: AWS/ApplicationELB
+      MetricName: HTTPCode_Target_5XX_Count
+      Dimensions:
+        - {Name: LoadBalancer, Value: !GetAtt ALB.LoadBalancerFullName}
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+  # Telemetría en UNA sola pantalla: CloudWatch -> Dashboards -> URPOnline-<pila> (link en Outputs).
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub 'URPOnline-${AWS::StackName}'
+      DashboardBody: !Sub |
+        {
+          "start": "-PT3H",
+          "periodOverride": "inherit",
+          "widgets": [
+            {"type":"text","x":0,"y":0,"width":24,"height":2,"properties":{"markdown":"# URPOnline en AWS: telemetría de todos los servicios\nTienda (HTTPS): https://${CDN.DomainName}  |  Navega, busca y compra: en 1-2 min suben las gráficas. Termina una EC2 en la consola y mira cómo Auto Scaling la reemplaza."}},
+            {"type":"alarm","x":0,"y":2,"width":24,"height":2,"properties":{"title":"Alarmas","alarms":["${UnhealthyHostsAlarm.Arn}","${Errors5xxAlarm.Arn}"]}},
+            {"type":"metric","x":0,"y":4,"width":8,"height":6,"properties":{"title":"ALB: peticiones y errores 5xx","region":"${AWS::Region}","stat":"Sum","period":60,"view":"timeSeries","metrics":[["AWS/ApplicationELB","RequestCount","LoadBalancer","${ALB.LoadBalancerFullName}",{"label":"Peticiones"}],[".","HTTPCode_Target_5XX_Count",".",".",{"label":"Errores 5xx","color":"#d62728"}]]}},
+            {"type":"metric","x":8,"y":4,"width":8,"height":6,"properties":{"title":"ALB: EC2 sanas detrás del balanceador","region":"${AWS::Region}","stat":"Maximum","period":60,"view":"timeSeries","metrics":[["AWS/ApplicationELB","HealthyHostCount","TargetGroup","${TG.TargetGroupFullName}","LoadBalancer","${ALB.LoadBalancerFullName}",{"label":"Sanas","color":"#2ca02c"}],[".","UnHealthyHostCount",".",".",".",".",{"label":"No sanas","color":"#d62728"}]],"yAxis":{"left":{"min":0}}}},
+            {"type":"metric","x":16,"y":4,"width":8,"height":6,"properties":{"title":"ALB: tiempo de respuesta (s)","region":"${AWS::Region}","stat":"Average","period":60,"view":"timeSeries","metrics":[["AWS/ApplicationELB","TargetResponseTime","LoadBalancer","${ALB.LoadBalancerFullName}",{"label":"Promedio"}],["...",{"stat":"p95","label":"p95"}]]}},
+            {"type":"metric","x":0,"y":10,"width":8,"height":6,"properties":{"title":"EC2 (Auto Scaling): CPU % y memoria %","region":"${AWS::Region}","period":60,"view":"timeSeries","metrics":[["AWS/EC2","CPUUtilization","AutoScalingGroupName","${Scaling}",{"stat":"Average","label":"CPU %"}],["URPOnline/EC2","mem_used_percent","AutoScalingGroupName","${Scaling}",{"stat":"Average","label":"Memoria %"}]],"yAxis":{"left":{"min":0,"max":100}}}},
+            {"type":"metric","x":8,"y":10,"width":8,"height":6,"properties":{"title":"RDS PostgreSQL: conexiones y CPU %","region":"${AWS::Region}","period":60,"view":"timeSeries","metrics":[["AWS/RDS","DatabaseConnections","DBInstanceIdentifier","${Postgres}",{"stat":"Maximum","label":"Conexiones"}],[".","CPUUtilization",".",".",{"stat":"Average","label":"CPU %","yAxis":"right"}]]}},
+            {"type":"metric","x":16,"y":10,"width":8,"height":6,"properties":{"title":"ElastiCache Redis (sesiones): conexiones y memoria %","region":"${AWS::Region}","period":60,"view":"timeSeries","metrics":[[{"expression":"SEARCH('{AWS/ElastiCache,CacheClusterId} MetricName=\"CurrConnections\" ${Redis}', 'Maximum', 60)","id":"conn","label":"Conexiones"}],[{"expression":"SEARCH('{AWS/ElastiCache,CacheClusterId} MetricName=\"DatabaseMemoryUsagePercentage\" ${Redis}', 'Average', 60)","id":"mem","label":"Memoria %","yAxis":"right"}]]}},
+            {"type":"metric","x":0,"y":16,"width":8,"height":6,"properties":{"title":"Tienda (AWS SDK): pedidos y ventas S/","region":"${AWS::Region}","stat":"Sum","period":300,"view":"timeSeries","metrics":[["URPOnline","OrdersCreated",{"label":"Pedidos"}],[".","OrderAmount",{"label":"Ventas S/","yAxis":"right"}]]}},
+            {"type":"metric","x":8,"y":16,"width":8,"height":6,"properties":{"title":"CloudFront (HTTPS): peticiones y % de errores","region":"us-east-1","period":300,"view":"timeSeries","metrics":[["AWS/CloudFront","Requests","Region","Global","DistributionId","${CDN}",{"stat":"Sum","label":"Peticiones"}],[".","5xxErrorRate",".",".",".",".",{"stat":"Average","label":"% 5xx","yAxis":"right"}]]}},
+            {"type":"metric","x":16,"y":16,"width":8,"height":6,"properties":{"title":"EC2: disco usado %","region":"${AWS::Region}","stat":"Average","period":300,"view":"timeSeries","metrics":[["URPOnline/EC2","disk_used_percent","AutoScalingGroupName","${Scaling}",{"label":"Disco %"}]],"yAxis":{"left":{"min":0,"max":100}}}},
+            {"type":"log","x":0,"y":22,"width":24,"height":7,"properties":{"title":"Logs de la tienda (cada logStream = una EC2)","region":"${AWS::Region}","view":"table","query":"SOURCE '${AppLogGroup}' | fields @timestamp, @logStream as EC2, @message | sort @timestamp desc | limit 50"}},
+            {"type":"log","x":0,"y":35,"width":24,"height":6,"properties":{"title":"VPC Flow Logs: tráfico RECHAZADO por security groups / NACL (intentos bloqueados)","region":"${AWS::Region}","view":"table","query":"SOURCE '${FlowLogGroup}' | filter action = 'REJECT' | stats count(*) as intentos by srcAddr, dstAddr, dstPort | sort intentos desc | limit 20"}},
+            {"type":"log","x":0,"y":29,"width":24,"height":6,"properties":{"title":"Nginx: peticiones por EC2 (el ALB reparte)","region":"${AWS::Region}","view":"bar","query":"SOURCE '${NginxLogGroup}' | stats count(*) as peticiones by @logStream as EC2"}}
+          ]
+        }
 Outputs:
   ALBDNS: {Value: !GetAtt ALB.DNSName}
+  DashboardURL: {Description: Telemetría de todos los servicios en una pantalla (CloudWatch), Value: !Sub 'https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards/dashboard/URPOnline-${AWS::StackName}'}
   ApplicationHTTPS: {Description: URL segura de la tienda (CloudFront), Value: !Sub "https://${CDN.DomainName}"}
   ApplicationHTTP: {Value: !Sub "http://${ALB.DNSName}"}
   RDSEndpoint: {Value: !GetAtt Postgres.Endpoint.Address}

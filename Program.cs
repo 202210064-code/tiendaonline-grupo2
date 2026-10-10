@@ -25,6 +25,7 @@ builder.Services.AddSession(o=>{
  o.Cookie.IsEssential=true;o.IdleTimeout=TimeSpan.FromMinutes(30);
 });
 builder.Services.AddScoped<CartService>();builder.Services.AddScoped<BusinessEvents>();
+builder.Services.AddScoped<BusinessMetrics>();
 // Búsqueda semántica: modelo local ONNX + pgvector en PostgreSQL.
 builder.Services.AddSingleton<EmbeddingService>();
 builder.Services.AddScoped<ProductVectorStore>();
