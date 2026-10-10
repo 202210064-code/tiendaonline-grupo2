@@ -18,6 +18,17 @@
 
 ## 🔑 Conectar tu equipo a tu cuenta de AWS (AWS CLI)
 
+**0. Descarga e instala la AWS CLI v2** (una sola vez):
+
+- **Windows** — en PowerShell: `winget install Amazon.AWSCLI`
+  o descarga el instalador: https://awscli.amazonaws.com/AWSCLIV2.msi (siguiente → siguiente → finalizar)
+- **macOS** — https://awscli.amazonaws.com/AWSCLIV2.pkg o `brew install awscli`
+- **Linux** — guía oficial: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+
+Comprueba la instalación (después de **cerrar y volver a abrir VS Code**): `aws --version` → debe mostrar `aws-cli/2.x.x`.
+
+> El **AWS SDK for .NET** (S3, Secrets Manager, CloudWatch) **no se instala aparte**: ya está en el proyecto y lo descarga `dotnet restore`. Usa las mismas credenciales que configuras aquí con `aws configure`.
+
 **1. Abre la terminal de VS Code:** menú **Terminal → New Terminal**.
 
 > Si `aws` dice *"no se reconoce como comando"*: cierra **todas** las ventanas de VS Code y vuelve a abrirlo (recién instalado no se ve). Mientras tanto puedes usar la ruta completa: `& "C:\Program Files\Amazon\AWSCLIV2\aws.exe" configure`
