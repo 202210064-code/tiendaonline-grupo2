@@ -1,4 +1,29 @@
 @model CartViewModel
-<div class="section-head"><div><span class="eyebrow">TU SELECCIÓN</span><h1>Carrito de compras</h1></div><a asp-controller="Home" asp-action="Index">← Seguir comprando</a></div>
-@if(Model.Lines.Count==0){<div class="empty">🛒<h2>Tu carrito está vacío</h2><a class="btn" asp-controller="Home" asp-action="Index">Ver productos</a></div>}
-else{<div class="checkout-layout"><div class="panel">@foreach(var line in Model.Lines){<div class="cart-row"><div class="mini-art">@line.Product.Emoji</div><div><h3>@line.Product.Name</h3><p>Cantidad: @line.Quantity · S/ @line.Product.Price.ToString("N2")</p></div><strong>S/ @line.Subtotal.ToString("N2")</strong><form asp-action="Remove" method="post"><input type="hidden" name="id" value="@line.Product.Id"/><button class="remove">Quitar</button></form></div>}</div><aside class="panel summary"><h2>Resumen</h2><div class="total"><span>Total</span><strong>S/ @Model.Total.ToString("N2")</strong></div><a class="btn full" asp-controller="Checkout" asp-action="Index">Continuar compra →</a></aside></div>}
+@{ var items = Model.Lines.Sum(x => x.Quantity); }
+@if(Model.Lines.Count==0){
+<div class="empty"><div class="empty-icon">🛒</div><h2>Tu carrito de URPOnline está vacío</h2><p>Revisa el catálogo y agrega productos.</p><a class="btn-cart inline" asp-controller="Home" asp-action="Index">Seguir comprando</a></div>
+}else{
+<div class="checkout-layout">
+ <div class="panel">
+  <div class="panel-head"><h1>Carrito</h1><span>Precio</span></div>
+  @foreach(var line in Model.Lines){
+   <div class="cart-row">
+    <div class="mini-art">@line.Product.Emoji</div>
+    <div class="cart-info">
+     <h3>@line.Product.Name</h3>
+     @if(line.Product.Stock>0){<p class="stock in">En stock</p>}else{<p class="stock out">No disponible</p>}
+     <p class="qty">Cantidad: <b>@line.Quantity</b> · S/ @line.Product.Price.ToString("N2") c/u</p>
+     <form asp-action="Remove" method="post"><input type="hidden" name="id" value="@line.Product.Id"/><button class="link-btn">Eliminar</button></form>
+    </div>
+    <strong class="cart-price">S/ @line.Subtotal.ToString("N2")</strong>
+   </div>
+  }
+  <div class="subtotal-line">Subtotal (@items producto(s)): <b>S/ @Model.Total.ToString("N2")</b></div>
+ </div>
+ <aside class="panel summary">
+  <p class="subtotal">Subtotal (@items producto(s)): <b>S/ @Model.Total.ToString("N2")</b></p>
+  <a class="btn-cart" asp-controller="Checkout" asp-action="Index">Proceder al pago</a>
+  <a class="continue" asp-controller="Home" asp-action="Index">← Seguir comprando</a>
+ </aside>
+</div>
+}

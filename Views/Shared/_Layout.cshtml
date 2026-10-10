@@ -1,5 +1,32 @@
+@inject TiendaOnline.Services.CartService CartStore
+@{
+ var cartCount = CartStore.Read(Context.Session).Sum(x => x.Quantity);
+ var categories = new[] { "Tecnología", "Accesorios", "Fotografía" };
+ var currentCategory = Context.Request.Query["category"].ToString();
+ var currentQuery = Context.Request.Query["q"].ToString();
+}
 <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>URPOnline | Tienda en línea</title><link rel="stylesheet" href="~/css/site.css" asp-append-version="true" /></head>
-<body><header class="nav"><a class="brand" asp-controller="Home" asp-action="Index">Nova<span>Shop</span></a><nav><a asp-controller="Home" asp-action="Index">Productos</a><a asp-controller="Cart" asp-action="Index">🛒 Carrito</a></nav></header>
+<body>
+<header class="topbar" id="top">
+ <a class="brand" asp-controller="Home" asp-action="Index">URP<span>Online</span><i></i></a>
+ <form class="search" method="get" asp-controller="Home" asp-action="Index" role="search">
+  <select name="category" aria-label="Categoría">
+   <option value="">Todos</option>
+   @foreach(var cat in categories){ if(cat==currentCategory){<option selected value="@cat">@cat</option>}else{<option value="@cat">@cat</option>} }
+  </select>
+  <input name="q" value="@currentQuery" placeholder="Buscar en URPOnline" aria-label="Buscar"/>
+  <button type="submit" aria-label="Buscar">🔍</button>
+ </form>
+ <a class="cart-link" asp-controller="Cart" asp-action="Index"><span class="cart-icon">🛒<b>@cartCount</b></span><span class="cart-text">Carrito</span></a>
+</header>
+<nav class="subnav">
+ <a asp-controller="Home" asp-action="Index">☰ Todo</a>
+ @foreach(var cat in categories){<a asp-controller="Home" asp-action="Index" asp-route-category="@cat">@cat</a>}
+</nav>
 <main class="main">@if(TempData["Message"] != null) { <div class="notice">@TempData["Message"]</div> } @RenderBody()</main>
-<footer>URPOnline · E-commerce · AWS VPC/DMZ · ASP.NET Core MVC</footer></body></html>
+<footer>
+ <a class="back-top" href="#top">Volver arriba</a>
+ <div class="footer-body"><span class="brand small">URP<span>Online</span></span><p>E-commerce de laboratorio · AWS VPC/DMZ · ASP.NET Core MVC</p></div>
+</footer>
+</body></html>

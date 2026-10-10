@@ -1,4 +1,20 @@
 @model CheckoutInput
 @{ var cart = (CartViewModel)ViewBag.Cart; }
-<div class="section-head"><div><span class="eyebrow">FINALIZAR COMPRA</span><h1>Datos de entrega</h1></div></div>
-<div class="checkout-layout"><form asp-action="Index" method="post" class="panel checkout-form"><div asp-validation-summary="All" class="validation"></div><label>Nombre completo<input asp-for="CustomerName" required maxlength="120"/></label><label>Correo electrónico<input asp-for="Email" type="email" required maxlength="200"/></label><label>Dirección de entrega<textarea asp-for="Address" required maxlength="300" rows="3"></textarea></label><p class="hint">La orden se crea como pendiente de pago. No se cobra dinero real.</p><button type="submit" class="btn full">Confirmar pedido →</button></form><aside class="panel summary"><h2>Tu pedido</h2>@foreach(var line in cart.Lines){<div class="summary-line"><span>@line.Quantity × @line.Product.Name</span><strong>S/ @line.Subtotal.ToString("N2")</strong></div>}<div class="total"><span>Total</span><strong>S/ @cart.Total.ToString("N2")</strong></div></aside></div>
+<h1 class="page-title">Finalizar compra</h1>
+<div class="checkout-layout">
+ <form asp-action="Index" method="post" class="panel checkout-form">
+  <h2><span class="step">1</span> Datos de entrega</h2>
+  <div asp-validation-summary="All" class="validation"></div>
+  <label>Nombre completo<input asp-for="CustomerName" required maxlength="120"/></label>
+  <label>Correo electrónico<input asp-for="Email" type="email" required maxlength="200"/></label>
+  <label>Dirección de entrega<textarea asp-for="Address" required maxlength="300" rows="3"></textarea></label>
+  <p class="hint">La orden se crea como pendiente de pago. No se cobra dinero real.</p>
+  <button type="submit" class="btn-cart">Confirmar pedido</button>
+ </form>
+ <aside class="panel summary">
+  <h2>Resumen del pedido</h2>
+  @foreach(var line in cart.Lines){<div class="summary-line"><span>@line.Quantity × @line.Product.Name</span><span>S/ @line.Subtotal.ToString("N2")</span></div>}
+  <div class="total"><span>Total del pedido:</span><strong>S/ @cart.Total.ToString("N2")</strong></div>
+  <p class="hint">Si hay una promoción activa, el descuento se calcula en el servidor al confirmar.</p>
+ </aside>
+</div>
