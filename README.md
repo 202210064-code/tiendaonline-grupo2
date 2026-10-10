@@ -1,4 +1,4 @@
-# URPOnline — Laboratorio AWS (TiendaOnline .NET)
+CL# URPOnline — Laboratorio AWS (TiendaOnline .NET)
 
 ## 👉 Empieza aquí
 
@@ -150,7 +150,13 @@ En la carpeta [`.github/workflows/`](.github/workflows/) hay 3 workflows que eje
 **Configúralo en TU GitHub (una sola vez):**
 
 1. **Haz un fork:** en https://github.com/jjjfrancia/tiendaonline pulsa **Fork** → se crea `https://github.com/TU_USUARIO/tiendaonline`.
-2. **Conecta GitHub con tu AWS sin Access Keys (OIDC).** Desde la carpeta del proyecto:
+2. **Conecta GitHub con tu AWS sin Access Keys (OIDC).** Clona **tu fork** y ábrelo en VS Code:
+   ```powershell
+   git clone https://github.com/TU_USUARIO/tiendaonline.git
+   cd tiendaonline
+   code .
+   ```
+   En VS Code abre **Terminal → New Terminal** (debe mostrar `PS C:\...\tiendaonline>`) y pega, cambiando `TU_USUARIO` por tu usuario de GitHub (requiere la AWS CLI ya configurada, sección "Conectar tu equipo a tu cuenta de AWS"):
    ```powershell
    aws cloudformation deploy --stack-name urponline-github-oidc --region us-east-2 `
      --template-file infra/github-oidc.yaml --capabilities CAPABILITY_NAMED_IAM `
@@ -159,6 +165,8 @@ En la carpeta [`.github/workflows/`](.github/workflows/) hay 3 workflows que eje
    ```
    Copia el valor que empieza con `arn:aws:iam::...:role/urponline-github-deploy-tiendaonline`.
    > Si da error *"Provider with url ... already exists"*, añade `CreateOidcProvider=false` a `--parameter-overrides`.
+
+   **Sin terminal (desde la consola de AWS):** CloudFormation → **Create stack** → *With new resources* → **Upload a template file** → elige `infra/github-oidc.yaml` de tu carpeta → nombre `urponline-github-oidc` → en `GitHubOwner` escribe tu usuario de GitHub → marca la casilla *"I acknowledge that AWS CloudFormation might create IAM resources with custom names"* → **Submit**. Cuando diga `CREATE_COMPLETE`, pestaña **Outputs** → copia `RoleArn`.
 3. **Guarda 2 secretos en tu fork:** GitHub → tu repo → **Settings → Secrets and variables → Actions → New repository secret**:
    | Nombre | Valor |
    |---|---|
