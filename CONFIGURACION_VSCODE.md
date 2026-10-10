@@ -74,13 +74,15 @@ git config --global user.email "tu-correo@ejemplo.com"
 
 ### 3.2 Clonar y abrir el proyecto
 
+El repositorio es **privado**. Usa el **token de solo lectura** que te da el profesor, en lugar de `TOKEN`:
+
 ```powershell
-git clone https://github.com/jjjfrancia/tiendaonline.git
+git clone https://TOKEN@github.com/jjjfrancia/tiendaonline.git
 cd tiendaonline
 code .
 ```
 
-> El repositorio es **de solo lectura** para los alumnos. Si quieres guardar tus cambios en GitHub, haz un **Fork** y clona tu fork.
+> Con el token puedes clonar y actualizar (`git pull`), pero no subir cambios. **No lo compartas** fuera del curso. Si quieres guardar tus cambios, súbelos a un repositorio privado tuyo (`git remote set-url origin <tu-repo>`).
 
 ### 3.3 Credenciales de AWS
 

@@ -77,10 +77,14 @@ aws sts get-caller-identity   # debe mostrar tu cuenta y tu usuario o rol
 
 ## 3. Clonar el repositorio
 
+El repositorio es **privado**. El profesor te entrega un **token de acceso de solo lectura**; reemplaza `TOKEN` por ese valor:
+
 ```powershell
-git clone https://github.com/jjjfrancia/tiendaonline.git
+git clone https://TOKEN@github.com/jjjfrancia/tiendaonline.git
 cd tiendaonline
 ```
+
+Para recibir actualizaciones durante el curso, ejecuta `git pull`.
 
 Archivos importantes:
 
@@ -94,7 +98,7 @@ Archivos importantes:
 | `scripts/` | Ejemplos de Nginx, systemd, PgBouncer y temporizador del Worker |
 | `examples/products.csv` | CSV de ejemplo para el Worker |
 
-> Este repositorio es **de solo lectura** para los alumnos. Puedes clonarlo, pero no subir cambios. Para tu propia versión, haz un **Fork** en GitHub y trabaja sobre tu copia.
+> El token es **de solo lectura**: puedes clonar y hacer `git pull`, pero no subir cambios. Si quieres guardar tu trabajo en GitHub, crea un repositorio **privado** en tu cuenta y súbelo ahí (`git remote set-url origin <tu-repo>`). **No compartas el token** ni lo publiques.
 
 ---
 
