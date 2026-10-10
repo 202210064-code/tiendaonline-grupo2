@@ -1,0 +1,9 @@
+URPOnline — INICIO AQUÍ
+
+Abrir primero URPOnline_INICIO_AQUI.docx.
+
+Secuencia: CASO -> APLICACION -> INSTALACION/SDK -> REDIS -> CLAUDE/DEPLOY -> RETOS AVANZADOS.
+
+URPOnline — Laboratorio integral de arquitectura empresarial AWS
+Este paquete reúne el caso empresarial, la arquitectura de referencia, la aplicación C#, las guías de implementación local y AWS, las configuraciones de infraestructura y las actividades de evaluación. El laboratorio se desarrolla progresivamente desde la comprensión del negocio hasta la construcción, despliegue, optimización y validación de una plataforma de comercio electrónico escalable, resiliente, segura y observable.
+Cada etapa establece sus objetivos, actividades, entregables y criterios de aceptación. Las pruebas de rendimiento, seguridad, disponibilidad y recuperación forman parte de los desafíos que deben ejecutar y demostrar los participantes.
