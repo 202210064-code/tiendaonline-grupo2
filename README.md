@@ -85,10 +85,12 @@ Toda la arquitectura está escrita en ese archivo **YAML de CloudFormation**. AW
 | Capa | Recursos que crea el YAML |
 |---|---|
 | Red | VPC `10.0.0.0/16`, subredes **públicas** (ALB, NAT), **de aplicación** (EC2) y **de datos** (RDS, Redis) en 2 zonas, IGW, 2 NAT, tablas de rutas, security groups |
-| Entrada | **ALB** público en el puerto 80 |
+| Entrada | **CloudFront** con **HTTPS** (certificado de AWS, sin dominio propio) → **ALB** público en el puerto 80 |
 | Aplicación | **Launch Template + Auto Scaling** (2 EC2 privadas con Nginx → Kestrel) |
 | Datos | **RDS PostgreSQL 16** (con pgvector), **ElastiCache Redis** (sesiones, TLS), **S3** de proveedores |
 | Seguridad | **Rol IAM** para las EC2 (S3 + Session Manager, sin claves) |
+
+> 🔒 **HTTPS sin comprar dominio:** AWS Certificate Manager (ACM) solo emite certificados para dominios **tuyos** (no para `...elb.amazonaws.com`). Por eso la plantilla pone **CloudFront** delante del ALB: CloudFront ya trae el certificado de `*.cloudfront.net`, así que la tienda queda en **`https://xxxx.cloudfront.net`** (salida `ApplicationHTTPS`) y `http://` redirige a `https://`. Si tienes dominio propio: certificado en **ACM** + listener **443** en el ALB + registro en **Route 53**.
 
 ### ⚡ Opción rápida: AWS CloudShell (sin instalar nada, sin Access Keys)
 
@@ -118,7 +120,7 @@ aws cloudformation describe-stacks --stack-name $STACK --region $REGION --query 
 | `curl ...` | Descarga el ZIP compilado de la tienda |
 | `aws s3 mb` / `aws s3 cp` | Crea el bucket y sube el ZIP (las EC2 lo descargan al arrancar) |
 | `aws cloudformation deploy` | Entrega el YAML a CloudFormation, que crea VPC, ALB, EC2, RDS, ElastiCache y S3 (20-30 min) |
-| `describe-stacks` | Muestra los resultados: **`ApplicationHTTP` es la URL de tu tienda** |
+| `describe-stacks` | Muestra los resultados: **`ApplicationHTTPS` es la URL segura de tu tienda** (CloudFront, `https://xxxx.cloudfront.net`); `ApplicationHTTP` es la del ALB directo |
 
 Puedes cerrar CloudShell mientras se crea: sigue en AWS. Avance en **CloudFormation → URPOnlineLab → Events**; al terminar, la URL está en la pestaña **Outputs**.
 

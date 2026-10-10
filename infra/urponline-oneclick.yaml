@@ -206,6 +206,39 @@ Resources:
   Listener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties: {LoadBalancerArn: !Ref ALB,Port: 80,Protocol: HTTP,DefaultActions: [{Type: forward,TargetGroupArn: !Ref TG}]}
+  # HTTPS sin dominio propio: CloudFront entrega https://xxxx.cloudfront.net con el certificado de AWS
+  # y reenvía al ALB por HTTP. (Con dominio propio: certificado ACM + listener 443 en el ALB + Route 53.)
+  CDN:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: URPOnline - HTTPS delante del ALB
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: alb
+            DomainName: !GetAtt ALB.DNSName
+            CustomOriginConfig: {OriginProtocolPolicy: http-only, HTTPPort: 80}
+        DefaultCacheBehavior:
+          TargetOriginId: alb
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad        # Managed-CachingDisabled (carrito y precios siempre al día)
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 # Managed-AllViewer (cookies, query string y encabezados)
+        CacheBehaviors:
+          - PathPattern: /css/*
+            TargetOriginId: alb
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6      # Managed-CachingOptimized
+          - PathPattern: /js/*
+            TargetOriginId: alb
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
   Launch:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -303,6 +336,7 @@ Resources:
       LaunchTemplate: {LaunchTemplateId: !Ref Launch,Version: !GetAtt Launch.LatestVersionNumber}
 Outputs:
   ALBDNS: {Value: !GetAtt ALB.DNSName}
+  ApplicationHTTPS: {Description: URL segura de la tienda (CloudFront), Value: !Sub "https://${CDN.DomainName}"}
   ApplicationHTTP: {Value: !Sub "http://${ALB.DNSName}"}
   RDSEndpoint: {Value: !GetAtt Postgres.Endpoint.Address}
   RedisPrimary: {Value: !GetAtt Redis.PrimaryEndPoint.Address}
