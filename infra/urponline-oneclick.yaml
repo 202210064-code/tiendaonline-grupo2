@@ -109,6 +109,34 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: {SubnetId: !Ref AppB,RouteTableId: !Ref AppRTB}
   DataRT: {Type: AWS::EC2::RouteTable,Properties: {VpcId: !Ref VPC}}
+  # VPC endpoint de S3 (tipo Gateway, gratis): las EC2 privadas llegan a S3 (ZIP, CSV de proveedores,
+  # repositorios de Amazon Linux) por la red interna de AWS, sin pasar por el NAT ni por Internet.
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcEndpointType: Gateway
+      RouteTableIds: [!Ref AppRTA, !Ref AppRTB]
+  # NACL de la subred de datos: segunda barrera (además de los security groups).
+  # Solo entra PostgreSQL (5432) y Redis (6379) desde las subredes de aplicación; todo lo demás se rechaza.
+  DataNacl:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId: !Ref VPC
+      Tags: [{Key: Name, Value: URPOnline-datos}]
+  DataNaclInPgA:    {Type: AWS::EC2::NetworkAclEntry, Properties: {NetworkAclId: !Ref DataNacl, RuleNumber: 100, Protocol: 6, RuleAction: allow, Egress: false, CidrBlock: 10.0.11.0/24, PortRange: {From: 5432, To: 5432}}}
+  DataNaclInPgB:    {Type: AWS::EC2::NetworkAclEntry, Properties: {NetworkAclId: !Ref DataNacl, RuleNumber: 101, Protocol: 6, RuleAction: allow, Egress: false, CidrBlock: 10.0.12.0/24, PortRange: {From: 5432, To: 5432}}}
+  DataNaclInRedisA: {Type: AWS::EC2::NetworkAclEntry, Properties: {NetworkAclId: !Ref DataNacl, RuleNumber: 110, Protocol: 6, RuleAction: allow, Egress: false, CidrBlock: 10.0.11.0/24, PortRange: {From: 6379, To: 6379}}}
+  DataNaclInRedisB: {Type: AWS::EC2::NetworkAclEntry, Properties: {NetworkAclId: !Ref DataNacl, RuleNumber: 111, Protocol: 6, RuleAction: allow, Egress: false, CidrBlock: 10.0.12.0/24, PortRange: {From: 6379, To: 6379}}}
+  DataNaclInDatosA: {Type: AWS::EC2::NetworkAclEntry, Properties: {NetworkAclId: !Ref DataNacl, RuleNumber: 120, Protocol: -1, RuleAction: allow, Egress: false, CidrBlock: 10.0.21.0/24}}
+  DataNaclInDatosB: {Type: AWS::EC2::NetworkAclEntry, Properties: {NetworkAclId: !Ref DataNacl, RuleNumber: 121, Protocol: -1, RuleAction: allow, Egress: false, CidrBlock: 10.0.22.0/24}}
+  DataNaclOutAppA:  {Type: AWS::EC2::NetworkAclEntry, Properties: {NetworkAclId: !Ref DataNacl, RuleNumber: 100, Protocol: 6, RuleAction: allow, Egress: true, CidrBlock: 10.0.11.0/24, PortRange: {From: 1024, To: 65535}}}
+  DataNaclOutAppB:  {Type: AWS::EC2::NetworkAclEntry, Properties: {NetworkAclId: !Ref DataNacl, RuleNumber: 101, Protocol: 6, RuleAction: allow, Egress: true, CidrBlock: 10.0.12.0/24, PortRange: {From: 1024, To: 65535}}}
+  DataNaclOutDatosA: {Type: AWS::EC2::NetworkAclEntry, Properties: {NetworkAclId: !Ref DataNacl, RuleNumber: 120, Protocol: -1, RuleAction: allow, Egress: true, CidrBlock: 10.0.21.0/24}}
+  DataNaclOutDatosB: {Type: AWS::EC2::NetworkAclEntry, Properties: {NetworkAclId: !Ref DataNacl, RuleNumber: 121, Protocol: -1, RuleAction: allow, Egress: true, CidrBlock: 10.0.22.0/24}}
+  DataNaclAssocA: {Type: AWS::EC2::SubnetNetworkAclAssociation, Properties: {SubnetId: !Ref DataA, NetworkAclId: !Ref DataNacl}}
+  DataNaclAssocB: {Type: AWS::EC2::SubnetNetworkAclAssociation, Properties: {SubnetId: !Ref DataB, NetworkAclId: !Ref DataNacl}}
   DataAssocA:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: {SubnetId: !Ref DataA,RouteTableId: !Ref DataRT}
@@ -159,6 +187,14 @@ Resources:
       BackupRetentionPeriod: !Ref DBBackupRetentionDays
       MultiAZ: !If [MultiAZ,true,false]
       StorageEncrypted: true
+  # AWS Secrets Manager: guarda usuario y contraseña de RDS. La app lo lee al arrancar con el AWS SDK
+  # (GetSecretValue); la contraseña ya no se escribe en /etc/urponline.env de la EC2.
+  DbSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${AWS::StackName}/rds-postgres'
+      Description: Credenciales de RDS PostgreSQL de URPOnline (las lee la app con el AWS SDK)
+      SecretString: !Sub '{"username":"urponline","password":"${DBPassword}"}'
   RedisSubnet:
     Type: AWS::ElastiCache::SubnetGroup
     Properties: {Description: URPOnline data subnets,SubnetIds: [!Ref DataA,!Ref DataB]}
@@ -194,6 +230,9 @@ Resources:
               - Effect: Allow
                 Action: ['s3:GetObject']
                 Resource: !Sub 'arn:${AWS::Partition}:s3:::${ArtifactBucket}/${ArtifactKey}'
+              - Effect: Allow
+                Action: ['secretsmanager:GetSecretValue']
+                Resource: !Ref DbSecret
   # VPC Flow Logs: registra el tráfico aceptado y rechazado de toda la VPC en CloudWatch Logs.
   FlowLogGroup:
     Type: AWS::Logs::LogGroup
@@ -295,7 +334,9 @@ Resources:
             cat >/etc/urponline.env <<'ENV'
             ASPNETCORE_ENVIRONMENT=Production
             ASPNETCORE_URLS=http://127.0.0.1:8080
-            ConnectionStrings__Postgres=Host=${Postgres.Endpoint.Address};Port=5432;Database=urponline;Username=urponline;Password=${DBPassword};SSL Mode=Require;Trust Server Certificate=true
+            ConnectionStrings__Postgres=Host=${Postgres.Endpoint.Address};Port=5432;Database=urponline;Username=urponline;SSL Mode=Require;Trust Server Certificate=true
+            # Sin contraseña: la app la pide a Secrets Manager con el AWS SDK.
+            Database__SecretArn=${DbSecret}
             ConnectionStrings__Redis=${Redis.PrimaryEndPoint.Address}:6379,ssl=true,abortConnect=false
             # Aplica las migraciones EF Core (tablas + pgvector + índice HNSW) al arrancar; un bloqueo en PostgreSQL evita que 2 EC2 migren a la vez.
             InitializeDatabase=true
@@ -449,4 +490,7 @@ Outputs:
   RedisPrimary: {Value: !GetAtt Redis.PrimaryEndPoint.Address}
   S3SupplierBucket: {Value: !Ref SupplierBucket}
   VpcId: {Value: !Ref VPC}
+  DbSecretArn: {Description: Secreto de RDS en Secrets Manager, Value: !Ref DbSecret}
+  S3EndpointId: {Description: VPC endpoint de S3 (Gateway), Value: !Ref S3Endpoint}
+  DataNaclId: {Description: NACL de la subred de datos, Value: !Ref DataNacl}
   TargetGroupArn: {Value: !Ref TG}

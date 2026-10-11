@@ -9,6 +9,8 @@ var builder=WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 var db=builder.Configuration.GetConnectionString("Postgres")?? throw new InvalidOperationException("Configure ConnectionStrings:Postgres; apunte a PgBouncer 6432 en AWS.");
+// En AWS la contraseña de RDS se lee de Secrets Manager (AWS SDK); en tu PC se usa appsettings.json.
+db=DatabaseSecret.BuildConnectionString(builder.Configuration,db);
 builder.Services.AddDbContext<ShopDbContext>(o=>o.UseNpgsql(db));
 var redis=builder.Configuration.GetConnectionString("Redis");
 if(!string.IsNullOrWhiteSpace(redis)) builder.Services.AddStackExchangeRedisCache(o=>o.Configuration=redis);
