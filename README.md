@@ -47,12 +47,12 @@ Cada grupo clona este laboratorio y lo sube a **su propio repositorio público**
 
 ### 👥 Grupos de **7 a 10** integrantes · 🎤 **100 minutos** de presentación repartidos por igual entre los grupos · ⏰ Entrega del video: viernes 23 de octubre de 2026 · participan **todos** los integrantes
 
-| Bloque | Qué se evalúa | Puntos |
+| Bloque | Qué se evalúa (indicadores y criterio de cumplimiento) | Puntos |
 |---|---|---|
-| 1 | Despliegue, AWS SDK y fallas | 5 o 0 |
-| 2 | PostgreSQL: carga y búsqueda por vectores | 5 o 0 |
-| 3 | Carrito y pago | 5 o 0 |
-| 4 | Sustentación individual (banco de 50 preguntas) | 5 o 0 |
+| **1. Despliegue, AWS SDK y fallas** | **1a Pipeline:** tienda por HTTPS con balanceo, búsqueda y compra desplegada por el pipeline, y un cambio que llega solo. **1b AWS SDK sin claves:** métricas desde AWS, EC2 sin claves y rol IAM explicado. **1c Cae un servidor:** la tienda sigue y el carrito se mantiene (Redis). **1d Cae una zona:** zona A aislada, venta desde la zona B y failover de Redis. **1e Evidencia y restauración** (Logs Insights, alarma, Reachability Analyzer). | 5 o 0 |
+| **2. PostgreSQL: carga y búsqueda por vectores** | **2a PgBouncer** desplegado por el pipeline. **2b Prueba de carga k6** (sin y con PgBouncer). **2c Evidencia en CloudWatch** e interpretación. **2d +30 productos** por migración, todos con vector, y consulta de similitud. **2e Experimento de búsqueda** con dos umbrales (0,3 y 0,6) e interpretación. | 5 o 0 |
+| **3. Carrito y pago** | **3a Métricas del carrito** (ActiveCarts cuenta personas, no clics). **3b Gráfica, alarma y simulación** desde el YAML. **3c Credenciales de pago** solo en Secrets Manager. **3d Pago con tarjeta de prueba** (ciclo completo). **3e Confirmación segura** (consulta el pago desde el servidor, no duplica). | 5 o 0 |
+| **4. Sustentación individual** | Banco de **50 preguntas**; se sortean algunas por integrante. Si un integrante no sustenta, el bloque vale 0 y ese alumno tiene 0. | 5 o 0 |
 
 **Cada bloque es todo o nada.** **El alumno que no sustenta tiene nota 0**, aunque haya participado en el trabajo. La rúbrica explica qué hacer, cómo demostrarlo y dónde cambiar el código, e incluye guías y scripts.
 
