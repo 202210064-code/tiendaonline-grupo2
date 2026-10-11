@@ -1,10 +1,24 @@
 # URPOnline — Laboratorio AWS (TiendaOnline .NET)
 
-> **Fase 1:** 24 de octubre · **Fase 2:** 7 de noviembre · **Fase 3:** 21 de noviembre · **Fase 4:** 5 y 12 de diciembre
->
-> **Fase 5 (semana 12), opcional:** para quienes quieran subir puntos porque no lograron la nota total, o para quienes no presentaron un trabajo y quieran presentarlo. Es un trabajo completo: AWS de punta a punta, con agentes de IA y RAG de punta a punta, incluido Jev; con todos los servicios de AWS estudiados, toda la teoría de RAG y de agentes de IA, y todas las pruebas.
->
-> **Orden de las presentaciones:** primero los voluntarios; si no hay voluntarios, por sorteo. Si no están presentes al momento de llamarlos, pierden la presentación. Si el grupo se encuentra incompleto en la sustentación, solo tendrán nota los que participen en la presentación en la clase.
+## 📅 Calendario de fases
+
+| Fase | Fecha | Qué se hace | Rama |
+|---|---|---|---|
+| **Fase 1** | 24 de octubre | Base de AWS: despliegue por pipeline, AWS SDK sin claves, tolerancia a fallas (servidor y zona), PostgreSQL con pgvector, carrito y pago. | [`main`](https://github.com/cortexgovernor/tiendaonline/tree/main) |
+| **Fase 2** | 7 de noviembre | Agentes en la tienda: los 4 agentes de IA y RAG, arquitectura serverless (EventBridge, SQS, Lambda) y seguridad con intrusión simulada. | [`fase-2`](https://github.com/cortexgovernor/tiendaonline/tree/fase-2) |
+| **Fase 3** | 21 de noviembre | IA, apps móviles y contenedores: más patrones de agentes, JSON en el prompt, app móvil que consume la API, y Docker/Fargate/EKS con blue-green. | [`fase-3`](https://github.com/cortexgovernor/tiendaonline/tree/fase-3) |
+| **Fase 4** | 5 y 12 de diciembre | Casos completos y sistemas distribuidos: cada grupo desarrolla un caso (ONPE, etc.) y MapReduce/Raft con validación automática. | [`fase-4`](https://github.com/cortexgovernor/tiendaonline/tree/fase-4) |
+| **Fase 5** *(opcional)* | Semana 12 | Trabajo completo de punta a punta (ver abajo). | *por definir* |
+
+**Fase 5 — opcional.** Para quienes quieran **subir puntos** porque no lograron la nota total, o para quienes **no presentaron un trabajo** y quieran presentarlo. Es un trabajo completo: AWS de punta a punta, con agentes de IA y RAG de punta a punta, **incluido Jev**; con todos los servicios de AWS estudiados, toda la teoría de RAG y de agentes de IA, y todas las pruebas.
+
+## 🎤 Orden de las presentaciones
+
+| Situación | Regla |
+|---|---|
+| Orden del turno | Primero los **voluntarios**; si no hay voluntarios, por **sorteo**. |
+| No están al ser llamados | **Pierden la presentación.** |
+| Grupo incompleto en la sustentación | **Solo tienen nota** los que participen en la presentación en la clase. |
 
 ---
 
