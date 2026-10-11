@@ -1,5 +1,28 @@
 # URPOnline — Laboratorio AWS (TiendaOnline .NET)
 
+---
+
+# 📋 RÚBRICA DE EVALUACIÓN (20 PUNTOS)
+
+## ➡️ [Descargar la rúbrica: `RUTA_DEL_CURSO/07_EVALUACION/URPOnline_Rubrica_Evaluacion_20_Puntos.docx`](RUTA_DEL_CURSO/07_EVALUACION/URPOnline_Rubrica_Evaluacion_20_Puntos.docx)
+
+### ⏰ Entrega del video: viernes 23 de octubre de 2026 · participan **todos** los integrantes
+
+| Bloque | Qué se evalúa | Puntos |
+|---|---|---|
+| 1 | Despliegue, AWS SDK y fallas | 5 o 0 |
+| 2 | PostgreSQL: carga y búsqueda por vectores | 5 o 0 |
+| 3 | Carrito y pago | 5 o 0 |
+| 4 | Sustentación individual (banco de 50 preguntas) | 5 o 0 |
+
+**Cada bloque es todo o nada.** La rúbrica explica qué hacer, cómo demostrarlo y dónde cambiar el código, e incluye guías y scripts.
+
+## 💬 [Canal del curso: GitHub Discussions](https://github.com/jjjfrancia/tiendaonline/discussions)
+
+Aquí pueden compartir todo: discutir las respuestas del banco de preguntas, dudas sobre la rúbrica y los desafíos, código, información, soluciones a errores y sugerencias. **Nunca publiquen secretos** (contraseñas, claves de AWS, tokens).
+
+---
+
 ## 👉 Empieza aquí
 
 1. **Prepara tu equipo:** [CONFIGURACION_VSCODE.md](CONFIGURACION_VSCODE.md) — qué instalar y configurar (VS Code, .NET 8, AWS CLI, extensiones).
@@ -9,10 +32,11 @@
 |---|---|---|
 | 01 | `RUTA_DEL_CURSO/01_CASO_Y_ARQUITECTURA` | Caso empresarial, arquitectura y dashboard de analítica |
 | 02 | `RUTA_DEL_CURSO/02_APLICACION` | La aplicación C# (código en la raíz de este repo) |
-| 03 | `RUTA_DEL_CURSO/03_INSTALACION_Y_AWS_SDK` | Configuración local y AWS SDK (100 preguntas) |
+| 03 | `RUTA_DEL_CURSO/03_INSTALACION_Y_AWS_SDK` | Configuración local y AWS SDK (simulacro de 40 preguntas) |
 | 04 | `RUTA_DEL_CURSO/04_SESIONES_REDIS` | Sesiones con Redis |
 | 05 | `RUTA_DEL_CURSO/05_CLAUDE_CODE_Y_DESPLIEGUE` | Claude Code + CloudFormation → [MEMORIA_DESPLIEGUE.md](MEMORIA_DESPLIEGUE.md) |
 | 06 | `RUTA_DEL_CURSO/06_DESAFIOS_AVANZADOS` | Ingeniería distribuida y pruebas de caos |
+| 07 | `RUTA_DEL_CURSO/07_EVALUACION` | **Rúbrica de evaluación (20 puntos)** |
 
 ---
 
