@@ -4,7 +4,7 @@
 >
 > **Fase 5 (semana 12), opcional:** para quienes quieran subir puntos porque no lograron la nota total, o para quienes no presentaron un trabajo y quieran presentarlo. Es un trabajo completo: AWS de punta a punta, con agentes de IA y RAG de punta a punta, incluido Jev; con todos los servicios de AWS estudiados, toda la teoría de RAG y de agentes de IA, y todas las pruebas.
 >
-> **Orden de las presentaciones:** primero los voluntarios; si no hay voluntarios, por sorteo. Si no están presentes al momento de llamarlos, pierden la presentación. Si el grupo se encuentra incompleto en la sustentación, solo tendrán nota los que participen.
+> **Orden de las presentaciones:** primero los voluntarios; si no hay voluntarios, por sorteo. Si no están presentes al momento de llamarlos, pierden la presentación. Si el grupo se encuentra incompleto en la sustentación, solo tendrán nota los que participen en la presentación en la clase.
 
 ---
 
