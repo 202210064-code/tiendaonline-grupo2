@@ -76,10 +76,10 @@ git config --global user.email "tu-correo@ejemplo.com"
 
 ### 3.2 Clonar y abrir el proyecto
 
-El repositorio es público: https://github.com/jjjfrancia/tiendaonline
+El repositorio es público: https://github.com/cortexgovernor/tiendaonline
 
 ```powershell
-git clone https://github.com/jjjfrancia/tiendaonline.git
+git clone https://github.com/cortexgovernor/tiendaonline.git
 cd tiendaonline
 code .
 ```

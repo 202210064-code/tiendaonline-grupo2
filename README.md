@@ -17,7 +17,7 @@
 
 **Cada bloque es todo o nada.** **El alumno que no sustenta tiene nota 0**, aunque haya participado en el trabajo. La rúbrica explica qué hacer, cómo demostrarlo y dónde cambiar el código, e incluye guías y scripts.
 
-## 💬 [Canal del curso: GitHub Discussions](https://github.com/jjjfrancia/tiendaonline/discussions)
+## 💬 [Canal del curso: GitHub Discussions](https://github.com/cortexgovernor/tiendaonline/discussions)
 
 Aquí pueden compartir todo: discutir las respuestas del banco de preguntas, dudas sobre la rúbrica y los desafíos, código, información, soluciones a errores y sugerencias. **Nunca publiquen secretos** (contraseñas, claves de AWS, tokens).
 
@@ -150,19 +150,19 @@ Ya está en `infra/urponline-oneclick.yaml` (recurso **`CDN`**): no hay que hace
 
 ### ⚡ Opción rápida: AWS CloudShell (sin instalar nada, sin Access Keys)
 
-**CloudShell** es una terminal dentro de la consola de AWS que ya trae la AWS CLI conectada a tu cuenta. El ZIP de la tienda ya está compilado en [Releases v1.0](https://github.com/jjjfrancia/tiendaonline/releases/tag/v1.0).
+**CloudShell** es una terminal dentro de la consola de AWS que ya trae la AWS CLI conectada a tu cuenta. El ZIP de la tienda ya está compilado en [Releases v1.0](https://github.com/cortexgovernor/tiendaonline/releases/tag/v1.0).
 
 1. Consola de AWS → arriba a la derecha elige la región **Ohio (us-east-2)**.
 2. Haz clic en el icono **`>_`** de la barra superior (o busca **CloudShell**).
 3. Pega este bloque y presiona **Enter**:
 
 ```bash
-cd ~ && rm -rf tiendaonline && git clone https://github.com/jjjfrancia/tiendaonline.git && cd tiendaonline
+cd ~ && rm -rf tiendaonline && git clone https://github.com/cortexgovernor/tiendaonline.git && cd tiendaonline
 REGION=us-east-2; STACK=URPOnlineLab
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 BUCKET=urponline-artefactos-$ACCOUNT-$REGION
 DBPASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 20); echo "$DBPASS" > ~/urponline-dbpass.txt
-curl -fL -o urponline-publish.zip https://github.com/jjjfrancia/tiendaonline/releases/download/v1.0/urponline-publish.zip
+curl -fL -o urponline-publish.zip https://github.com/cortexgovernor/tiendaonline/releases/download/v1.0/urponline-publish.zip
 aws s3 mb s3://$BUCKET --region $REGION; aws s3 cp urponline-publish.zip s3://$BUCKET/releases/urponline-v1.zip
 aws cloudformation deploy --stack-name $STACK --region $REGION --template-file infra/urponline-oneclick.yaml --capabilities CAPABILITY_IAM --parameter-overrides ArtifactBucket=$BUCKET ArtifactKey=releases/urponline-v1.zip DBPassword=$DBPASS EnableMultiAZ=false
 aws cloudformation describe-stacks --stack-name $STACK --region $REGION --query "Stacks[0].Outputs" --output table
@@ -288,7 +288,7 @@ GitHub necesita permiso para crear recursos en **tu** cuenta. En lugar de guarda
 #### Configúralo en TU GitHub, paso a paso (una sola vez, ~15 min)
 
 **Paso 1 — Crea tu copia del repositorio (fork).**
-Entra a https://github.com/jjjfrancia/tiendaonline (con tu cuenta de GitHub iniciada) → botón **Fork** (arriba a la derecha) → **Create fork**. Ahora tienes `https://github.com/TU_USUARIO/tiendaonline`: ahí correrán **tus** workflows contra **tu** AWS.
+Entra a https://github.com/cortexgovernor/tiendaonline (con tu cuenta de GitHub iniciada) → botón **Fork** (arriba a la derecha) → **Create fork**. Ahora tienes `https://github.com/TU_USUARIO/tiendaonline`: ahí correrán **tus** workflows contra **tu** AWS.
 
 **Paso 2 — Crea en AWS el rol para GitHub (OIDC).** Elige una forma:
 
@@ -346,7 +346,7 @@ winget install GitHub.cli
 gh auth login --web --scopes workflow
 
 # Paso 1: crear tu fork y clonarlo en la carpeta actual
-gh repo fork jjjfrancia/tiendaonline --clone
+gh repo fork cortexgovernor/tiendaonline --clone
 cd tiendaonline
 code . -r
 
@@ -530,7 +530,7 @@ Requisitos: **.NET 8 SDK**, **Docker Desktop** abierto y **Git**. Cómo instalar
 
 ```powershell
 # 1. Descargar el proyecto
-git clone https://github.com/jjjfrancia/tiendaonline.git
+git clone https://github.com/cortexgovernor/tiendaonline.git
 cd tiendaonline
 
 # 2. PostgreSQL con pgvector + Redis (Docker)

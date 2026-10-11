@@ -80,7 +80,7 @@ aws sts get-caller-identity   # debe mostrar tu cuenta y tu usuario o rol
 El repositorio es **privado**. El profesor te entrega un **token de acceso de solo lectura**; reemplaza `TOKEN` por ese valor:
 
 ```powershell
-git clone https://TOKEN@github.com/jjjfrancia/tiendaonline.git
+git clone https://TOKEN@github.com/cortexgovernor/tiendaonline.git
 cd tiendaonline
 ```
 
