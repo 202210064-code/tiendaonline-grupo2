@@ -150,30 +150,34 @@ Ya está en `infra/urponline-oneclick.yaml` (recurso **`CDN`**): no hay que hace
 
 ### ⚡ Opción rápida: AWS CloudShell (sin instalar nada, sin Access Keys)
 
-**CloudShell** es una terminal dentro de la consola de AWS que ya trae la AWS CLI conectada a tu cuenta. El ZIP de la tienda ya está compilado en [Releases v1.0](https://github.com/cortexgovernor/tiendaonline/releases/tag/v1.0).
+**CloudShell** es una terminal dentro de la consola de AWS que ya trae la AWS CLI conectada a tu cuenta.
 
-1. Consola de AWS → arriba a la derecha elige la región **Ohio (us-east-2)**.
-2. Haz clic en el icono **`>_`** de la barra superior (o busca **CloudShell**).
-3. Pega este bloque y presiona **Enter**:
+> 🔒 Este repositorio es **privado**: CloudShell no puede descargarlo solo (no tiene tu sesión de GitHub). Por eso los dos archivos se descargan primero en tu navegador, donde sí iniciaste sesión, y se suben a CloudShell. No uses tokens ni contraseñas de GitHub en CloudShell.
+
+1. **En tu navegador, con tu cuenta de GitHub iniciada**, descarga estos dos archivos a tu PC:
+   - El ZIP compilado de la tienda: [Releases v1.0](https://github.com/cortexgovernor/tiendaonline/releases/tag/v1.0) → **`urponline-publish.zip`**.
+   - La plantilla: [`infra/urponline-oneclick.yaml`](infra/urponline-oneclick.yaml) → botón **Download raw file** (icono de descarga, arriba a la derecha del archivo).
+2. Consola de AWS → arriba a la derecha elige la región **Ohio (us-east-2)**.
+3. Haz clic en el icono **`>_`** de la barra superior (o busca **CloudShell**).
+4. En CloudShell: **Acciones → Cargar archivo** → sube `urponline-publish.zip`. Repite con `urponline-oneclick.yaml`. Quedan en tu carpeta de inicio (`~`).
+5. Pega este bloque y presiona **Enter**:
 
 ```bash
-cd ~ && rm -rf tiendaonline && git clone https://github.com/cortexgovernor/tiendaonline.git && cd tiendaonline
+cd ~ && ls urponline-publish.zip urponline-oneclick.yaml
 REGION=us-east-2; STACK=URPOnlineLab
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 BUCKET=urponline-artefactos-$ACCOUNT-$REGION
 DBPASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 20); echo "$DBPASS" > ~/urponline-dbpass.txt
-curl -fL -o urponline-publish.zip https://github.com/cortexgovernor/tiendaonline/releases/download/v1.0/urponline-publish.zip
 aws s3 mb s3://$BUCKET --region $REGION; aws s3 cp urponline-publish.zip s3://$BUCKET/releases/urponline-v1.zip
-aws cloudformation deploy --stack-name $STACK --region $REGION --template-file infra/urponline-oneclick.yaml --capabilities CAPABILITY_IAM --parameter-overrides ArtifactBucket=$BUCKET ArtifactKey=releases/urponline-v1.zip DBPassword=$DBPASS EnableMultiAZ=false
+aws cloudformation deploy --stack-name $STACK --region $REGION --template-file urponline-oneclick.yaml --capabilities CAPABILITY_IAM --parameter-overrides ArtifactBucket=$BUCKET ArtifactKey=releases/urponline-v1.zip DBPassword=$DBPASS EnableMultiAZ=false
 aws cloudformation describe-stacks --stack-name $STACK --region $REGION --query "Stacks[0].Outputs" --output table
 ```
 
 | Línea | Qué hace |
 |---|---|
-| `git clone ...` | Descarga el proyecto (incluye el YAML `infra/urponline-oneclick.yaml`) |
+| `ls ...` | Comprueba que los dos archivos se subieron (si dice *No such file*, repite el paso 4) |
 | `ACCOUNT=` / `BUCKET=` | Arma un nombre de bucket único con tu número de cuenta |
 | `DBPASS=` | Genera la contraseña de RDS y la guarda en `~/urponline-dbpass.txt` |
-| `curl ...` | Descarga el ZIP compilado de la tienda |
 | `aws s3 mb` / `aws s3 cp` | Crea el bucket y sube el ZIP (las EC2 lo descargan al arrancar) |
 | `aws cloudformation deploy` | Entrega el YAML a CloudFormation, que crea VPC, ALB, EC2, RDS, ElastiCache y S3 (20-30 min) |
 | `describe-stacks` | Muestra los resultados: **`ApplicationHTTPS` es la URL segura de tu tienda** (CloudFront, `https://xxxx.cloudfront.net`); `ApplicationHTTP` es la del ALB directo |
