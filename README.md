@@ -15,7 +15,7 @@
 | 3 | Carrito y pago | 5 o 0 |
 | 4 | Sustentación individual (banco de 50 preguntas) | 5 o 0 |
 
-**Cada bloque es todo o nada.** La rúbrica explica qué hacer, cómo demostrarlo y dónde cambiar el código, e incluye guías y scripts.
+**Cada bloque es todo o nada.** **El alumno que no sustenta tiene nota 0**, aunque haya participado en el trabajo. La rúbrica explica qué hacer, cómo demostrarlo y dónde cambiar el código, e incluye guías y scripts.
 
 ## 💬 [Canal del curso: GitHub Discussions](https://github.com/jjjfrancia/tiendaonline/discussions)
 
