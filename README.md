@@ -6,7 +6,7 @@
 
 ## ➡️ [Descargar la rúbrica: `RUTA_DEL_CURSO/07_EVALUACION/URPOnline_Rubrica_Evaluacion_20_Puntos.docx`](RUTA_DEL_CURSO/07_EVALUACION/URPOnline_Rubrica_Evaluacion_20_Puntos.docx)
 
-### 👥 Grupos de **6 a 10** integrantes · 🎤 **100 minutos** de presentación repartidos por igual entre los grupos · ⏰ Entrega del video: viernes 23 de octubre de 2026 · participan **todos** los integrantes
+### 👥 Grupos de **7 a 10** integrantes · 🎤 **100 minutos** de presentación repartidos por igual entre los grupos · ⏰ Entrega del video: viernes 23 de octubre de 2026 · participan **todos** los integrantes
 
 | Bloque | Qué se evalúa | Puntos |
 |---|---|---|
