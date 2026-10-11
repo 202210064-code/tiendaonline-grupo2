@@ -2,7 +2,7 @@
 
 > **Fase 1:** 24 de octubre · **Fase 2:** 7 de noviembre · **Fase 3:** 21 de noviembre · **Fase 4:** 5 y 12 de diciembre
 >
-> **Fase 5 (semana 12), opcional:** para quienes quieran subir puntos porque no lograron la nota total, o para quienes no presentaron un trabajo y quieran presentarlo. Es un trabajo completo: AWS de punta a punta, con agentes de IA y RAG de punta a punta, incluido Jev.
+> **Fase 5 (semana 12), opcional:** para quienes quieran subir puntos porque no lograron la nota total, o para quienes no presentaron un trabajo y quieran presentarlo. Es un trabajo completo: AWS de punta a punta, con agentes de IA y RAG de punta a punta, incluido Jev; con todos los servicios de AWS estudiados, toda la teoría de RAG y de agentes de IA, y todas las pruebas.
 
 ---
 
