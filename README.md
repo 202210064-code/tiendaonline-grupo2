@@ -2,6 +2,19 @@
 
 ---
 
+# 🍴 PRIMERO: HAZ TU FORK. TRABAJA SOLO EN TU PROPIO REPOSITORIO
+
+Este repositorio es **solo de lectura**: aquí no puedes subir cambios ni desplegar. Cada grupo trabaja en **su propio fork**, que es su copia del laboratorio en su cuenta de GitHub. Ahí corren **sus** GitHub Actions contra **su** cuenta de AWS, y ese fork es el que se evalúa.
+
+1. Acepta la invitación que te llegó al correo de la universidad (o entra a https://github.com/orgs/cortexgovernor/invitation).
+2. Entra a https://github.com/cortexgovernor/tiendaonline → botón **Fork** (arriba a la derecha).
+3. En **Owner** elige **tu cuenta** (no `cortexgovernor`) → **Create fork**.
+4. Desde ahora usa **tu** repositorio: `https://github.com/TU_USUARIO/tiendaonline`. Ahí configuras los secretos, activas Actions y haces todos los cambios.
+
+> Un integrante del grupo hace el fork y agrega a los demás como colaboradores de **su** fork (**Settings → Collaborators → Add people**). El enlace de ese fork es el que se entrega con el video.
+
+---
+
 # 📋 RÚBRICA DE EVALUACIÓN (20 PUNTOS)
 
 ## ➡️ [Descargar la rúbrica: `RUTA_DEL_CURSO/07_EVALUACION/URPOnline_Rubrica_Evaluacion_20_Puntos.docx`](RUTA_DEL_CURSO/07_EVALUACION/URPOnline_Rubrica_Evaluacion_20_Puntos.docx)
