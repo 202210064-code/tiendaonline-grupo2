@@ -1,5 +1,7 @@
 # URPOnline — Laboratorio AWS (TiendaOnline .NET)
 
+> **Fase 1:** 24 de octubre · **Fase 2:** 7 de noviembre · **Fase 3:** 21 de noviembre · **Fase 4:** 5 y 12 de diciembre
+
 ---
 
 # 📦 PRIMERO: CREA TU PROPIO REPOSITORIO. TRABAJA SOLO EN ÉL
