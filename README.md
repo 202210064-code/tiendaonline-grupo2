@@ -2,16 +2,24 @@
 
 ---
 
-# 🍴 PRIMERO: HAZ TU FORK. TRABAJA SOLO EN TU PROPIO REPOSITORIO
+# 📦 PRIMERO: CREA TU PROPIO REPOSITORIO. TRABAJA SOLO EN ÉL
 
-Este repositorio es **solo de lectura**: aquí no puedes subir cambios ni desplegar. Cada grupo trabaja en **su propio fork**, que es su copia del laboratorio en su cuenta de GitHub. Ahí corren **sus** GitHub Actions contra **su** cuenta de AWS, y ese fork es el que se evalúa.
+Cada grupo clona este laboratorio y lo sube a **su propio repositorio público**. Ahí trabajan, ahí corren **sus** GitHub Actions contra **su** cuenta de AWS, y ese repositorio es el que se evalúa.
 
 1. Acepta la invitación que te llegó al correo de la universidad (o entra a https://github.com/orgs/cortexgovernor/invitation).
-2. Entra a https://github.com/cortexgovernor/tiendaonline → botón **Fork** (arriba a la derecha).
-3. En **Owner** elige **tu cuenta** (no `cortexgovernor`) → **Create fork**.
+2. En GitHub crea un repositorio **nuevo, público y vacío** en tu cuenta: **+ → New repository** → nombre `tiendaonline` → **Public** → deja las demás opciones como vienen → **Create repository**.
+3. En tu PC (la primera vez Git abre el navegador para iniciar sesión):
+   ```bash
+   git clone https://github.com/cortexgovernor/tiendaonline.git
+   cd tiendaonline
+   git remote rename origin profesor
+   git remote add origin https://github.com/TU_USUARIO/tiendaonline.git
+   git push -u origin main
+   ```
 4. Desde ahora usa **tu** repositorio: `https://github.com/TU_USUARIO/tiendaonline`. Ahí configuras los secretos, activas Actions y haces todos los cambios.
 
-> Un integrante del grupo hace el fork y agrega a los demás como colaboradores de **su** fork (**Settings → Collaborators → Add people**). El enlace de ese fork es el que se entrega con el video.
+> Un integrante del grupo crea el repositorio y agrega a los demás como colaboradores (**Settings → Collaborators → Add people**). El enlace de ese repositorio es el que se entrega con el video.
+> Si el profesor publica cambios, los traes con `git pull profesor main` y los subes con `git push`.
 
 ---
 
@@ -165,30 +173,28 @@ Ya está en `infra/urponline-oneclick.yaml` (recurso **`CDN`**): no hay que hace
 
 **CloudShell** es una terminal dentro de la consola de AWS que ya trae la AWS CLI conectada a tu cuenta.
 
-> 🔒 Este repositorio es **privado**: CloudShell no puede descargarlo solo (no tiene tu sesión de GitHub). Por eso los dos archivos se descargan primero en tu navegador, donde sí iniciaste sesión, y se suben a CloudShell. No uses tokens ni contraseñas de GitHub en CloudShell.
+> Los comandos clonan **tu** repositorio público (el que creaste arriba). Cambia `TU_USUARIO` por tu usuario de GitHub.
 
-1. **En tu navegador, con tu cuenta de GitHub iniciada**, descarga estos dos archivos a tu PC:
-   - El ZIP compilado de la tienda: [Releases v1.0](https://github.com/cortexgovernor/tiendaonline/releases/tag/v1.0) → **`urponline-publish.zip`**.
-   - La plantilla: [`infra/urponline-oneclick.yaml`](infra/urponline-oneclick.yaml) → botón **Download raw file** (icono de descarga, arriba a la derecha del archivo).
+1. **En tu navegador, con tu cuenta de GitHub iniciada**, descarga el ZIP compilado de la tienda: [Releases v1.0](https://github.com/cortexgovernor/tiendaonline/releases/tag/v1.0) → **`urponline-publish.zip`**.
 2. Consola de AWS → arriba a la derecha elige la región **Ohio (us-east-2)**.
 3. Haz clic en el icono **`>_`** de la barra superior (o busca **CloudShell**).
-4. En CloudShell: **Acciones → Cargar archivo** → sube `urponline-publish.zip`. Repite con `urponline-oneclick.yaml`. Quedan en tu carpeta de inicio (`~`).
+4. En CloudShell: **Acciones → Cargar archivo** → sube `urponline-publish.zip`. Queda en tu carpeta de inicio (`~`).
 5. Pega este bloque y presiona **Enter**:
 
 ```bash
-cd ~ && ls urponline-publish.zip urponline-oneclick.yaml
+cd ~ && rm -rf tiendaonline && git clone https://github.com/TU_USUARIO/tiendaonline.git && mv urponline-publish.zip tiendaonline/ && cd tiendaonline
 REGION=us-east-2; STACK=URPOnlineLab
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 BUCKET=urponline-artefactos-$ACCOUNT-$REGION
 DBPASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 20); echo "$DBPASS" > ~/urponline-dbpass.txt
 aws s3 mb s3://$BUCKET --region $REGION; aws s3 cp urponline-publish.zip s3://$BUCKET/releases/urponline-v1.zip
-aws cloudformation deploy --stack-name $STACK --region $REGION --template-file urponline-oneclick.yaml --capabilities CAPABILITY_IAM --parameter-overrides ArtifactBucket=$BUCKET ArtifactKey=releases/urponline-v1.zip DBPassword=$DBPASS EnableMultiAZ=false
+aws cloudformation deploy --stack-name $STACK --region $REGION --template-file infra/urponline-oneclick.yaml --capabilities CAPABILITY_IAM --parameter-overrides ArtifactBucket=$BUCKET ArtifactKey=releases/urponline-v1.zip DBPassword=$DBPASS EnableMultiAZ=false
 aws cloudformation describe-stacks --stack-name $STACK --region $REGION --query "Stacks[0].Outputs" --output table
 ```
 
 | Línea | Qué hace |
 |---|---|
-| `ls ...` | Comprueba que los dos archivos se subieron (si dice *No such file*, repite el paso 4) |
+| `git clone ...` | Descarga tu repositorio (incluye el YAML `infra/urponline-oneclick.yaml`) y mueve ahí el ZIP que subiste |
 | `ACCOUNT=` / `BUCKET=` | Arma un nombre de bucket único con tu número de cuenta |
 | `DBPASS=` | Genera la contraseña de RDS y la guarda en `~/urponline-dbpass.txt` |
 | `aws s3 mb` / `aws s3 cp` | Crea el bucket y sube el ZIP (las EC2 lo descargan al arrancar) |
