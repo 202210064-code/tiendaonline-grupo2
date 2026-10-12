@@ -590,6 +590,8 @@ dnf install -y aws-cfn-bootstrap
 dnf install -y nginx unzip amazon-cloudwatch-agent aspnetcore-runtime-8.0
 ```
 
+> 📌 **dnf está en la plantilla de CloudFormation** (`infra/urponline-oneclick.yaml`), dentro del **Launch Template → UserData**. El primer paquete que instala, `aws-cfn-bootstrap`, es el paquete de herramientas de **CloudFormation**: trae `cfn-signal`.
+
 | Paquete | Para qué lo necesita la tienda |
 |---|---|
 | `aws-cfn-bootstrap` | Trae **cfn-signal**: la EC2 avisa a CloudFormation si arrancó bien o mal |
