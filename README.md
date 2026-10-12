@@ -1,5 +1,13 @@
 # URPOnline — Laboratorio AWS (TiendaOnline .NET)
 
+# 📘 BALOTARIO DEL EXAMEN PARCIAL: 50 PREGUNTAS RESUELTAS
+
+## ➡️ [Descargar el balotario en PDF](RUTA_DEL_CURSO/01_CASO_Y_ARQUITECTURA/Balotario_50_preguntas_SOLUCIONADO.pdf) · [en Word](RUTA_DEL_CURSO/01_CASO_Y_ARQUITECTURA/URPOnline_Navidad_CyberMonday_Catalogo_Nocturno_40_Preguntas.docx)
+
+Las 50 preguntas con la explicación de cada respuesta y, al final, las **definiciones** de todos los servicios, siglas y términos que aparecen en el examen. Quien estudia el balotario puede responder el examen.
+
+---
+
 ## 📅 Calendario de fases
 
 | Fase | Fecha | Qué se hace | Rama |
@@ -7,8 +15,8 @@
 | **Fase 1** | 24 de octubre | Base de AWS: despliegue por pipeline, AWS SDK sin claves, tolerancia a fallas (servidor y zona), PostgreSQL con pgvector, carrito y pago. | [`main`](https://github.com/cortexgovernor/tiendaonline/tree/main) y [`fase-1`](https://github.com/cortexgovernor/tiendaonline/tree/fase-1) |
 | **Fase 2** | 7 de noviembre | Agentes en la tienda: los 4 agentes de IA y RAG, arquitectura serverless (EventBridge, SQS, Lambda) y seguridad con intrusión simulada. | [`fase-2`](https://github.com/cortexgovernor/tiendaonline/tree/fase-2) |
 | **Fase 3** | 21 de noviembre | IA, apps móviles y contenedores: más patrones de agentes, JSON en el prompt, app móvil que consume la API, y Docker/Fargate/EKS con blue-green. | [`fase-3`](https://github.com/cortexgovernor/tiendaonline/tree/fase-3) |
-| **Fase 4** | 5 y 12 de diciembre | Casos completos y sistemas distribuidos: cada grupo desarrolla un caso (ONPE, etc.) y MapReduce/Raft con validación automática. | [`fase-4`](https://github.com/cortexgovernor/tiendaonline/tree/fase-4) |
-| **Fase 5** *(opcional)* | 12 de diciembre en adelante | Para quienes quieran **subir puntos** porque no lograron la nota total, o para quienes **no presentaron un trabajo** y quieran presentarlo. Trabajo completo: AWS de punta a punta, con agentes de IA y RAG de punta a punta, **incluido Jev**; con todos los servicios de AWS estudiados, toda la teoría de RAG y de agentes de IA, y todas las pruebas. | — |
+| **Fase 4** | 5 de diciembre | Casos completos y sistemas distribuidos: cada grupo desarrolla un caso (ONPE, etc.) y MapReduce/Raft con validación automática. | [`fase-4`](https://github.com/cortexgovernor/tiendaonline/tree/fase-4) |
+| **Fase 5** *(opcional)* | 5 de diciembre | Para quienes quieran **subir puntos** porque no lograron la nota total, o para quienes **no presentaron un trabajo** y quieran presentarlo. Trabajo completo: AWS de punta a punta, con agentes de IA y RAG de punta a punta, **incluido Jev**; con todos los servicios de AWS estudiados, toda la teoría de RAG y de agentes de IA, y todas las pruebas. | — |
 
 ## 🎤 Orden de las presentaciones
 
