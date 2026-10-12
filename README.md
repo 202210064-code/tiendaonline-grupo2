@@ -570,6 +570,115 @@ aws cloudwatch get-metric-statistics --namespace URPOnline --metric-name OrdersC
 
 ---
 
+## 📚 Glosario: servicios, siglas y términos del laboratorio
+
+Las mismas definiciones del balotario y del examen. Si un término no está aquí, está en la explicación de alguna de las 50 preguntas del balotario.
+
+#### Servicios de AWS
+
+| Servicio | Para qué sirve | Ejemplo en URPOnline |
+|---|---|---|
+| **Amazon VPC** | Red privada y aislada en AWS donde se ubican los recursos, dividida en subredes. | VPC 10.0.0.0/16 de URPOnline con subredes públicas, de aplicación y de datos. |
+| **Internet Gateway (IGW)** | Conecta la VPC con Internet; lo usan las subredes públicas. | El ALB y los NAT Gateway están en subredes con ruta al IGW. |
+| **NAT Gateway** | Da salida a Internet a recursos de subredes privadas, para conexiones iniciadas desde dentro. | Las EC2 sin IP pública instalan paquetes con dnf a través del NAT de su zona. |
+| **Tabla de rutas** | Indica a dónde se envía el tráfico de una subred según su destino. | La subred de aplicación envía 0.0.0.0/0 al NAT Gateway. |
+| **Amazon EC2** | Servidores virtuales (instancias) en la nube. | Cada EC2 corre Nginx y la aplicación ASP.NET Core. |
+| **Amazon EC2 Auto Scaling** | Mantiene la cantidad deseada de EC2 y las reemplaza o aumenta automáticamente. | Mantiene 2 EC2, una en AZ-a y otra en AZ-b. |
+| **Launch Template** | Plantilla con la configuración para lanzar EC2 (AMI, tipo, rol IAM, Security Group, User Data). | Auto Scaling crea cada EC2 de URPOnline a partir de esta plantilla. |
+| **Application Load Balancer (ALB) y Target Group** | Reparte el tráfico HTTP/HTTPS entre las instancias registradas en un Target Group, según su health check. | Reparte las visitas de la tienda entre las dos EC2. |
+| **Amazon CloudFront** | Red de distribución de contenido (CDN) que entrega el sitio y puede dar HTTPS. | Delante del ALB, da la dirección https://…cloudfront.net. |
+| **AWS Certificate Manager (ACM)** | Emite y renueva certificados para HTTPS. | Certificado para un dominio propio de la tienda. |
+| **Amazon Route 53** | Servicio de DNS de AWS (registros como CNAME). | Componente en evaluación, aún no desplegado. |
+| **AWS WAF y AWS Shield** | WAF filtra peticiones web; Shield protege contra ataques de denegación de servicio. | Componentes en evaluación para proteger la tienda. |
+| **Amazon RDS (PostgreSQL)** | Base de datos relacional administrada por AWS. | Guarda pedidos, stock y pagos; con pgvector, la búsqueda semántica. |
+| **pgvector (extensión de PostgreSQL en Amazon RDS)** | Permite guardar vectores en PostgreSQL y buscar los más parecidos; es la base de la búsqueda semántica. | La tabla ProductEmbeddings guarda el vector de cada producto. |
+| **Amazon ElastiCache (Redis)** | Almacén en memoria administrado, muy rápido. | Guarda la sesión y el carrito compartidos entre las EC2. |
+| **Amazon S3** | Almacenamiento de objetos (archivos). | Guarda el ZIP de cada versión de la aplicación y el archivo del catálogo. |
+| **VPC Endpoint (Gateway e Interface)** | Acceso privado desde la VPC a servicios de AWS sin pasar por Internet. | Las EC2 llegan a S3 por la red de AWS. |
+| **AWS Secrets Manager** | Guarda secretos cifrados (contraseñas, tokens) y los entrega a quien tiene permiso. | Guarda la contraseña de RDS. |
+| **AWS IAM** | Controla quién puede hacer qué en AWS mediante usuarios, roles y políticas. | El rol de las EC2 les da permiso solo sobre lo que usan. |
+| **AWS Systems Manager Session Manager** | Abre una terminal en una EC2 desde la consola o la CLI, autenticada con IAM. | Entrar a una EC2 privada para revisar el servicio de la tienda. |
+| **Amazon CloudWatch** | Métricas, logs, alarmas y dashboards de los recursos y de la aplicación. | Dashboard con pedidos, ventas, CPU y errores de la tienda. |
+| **VPC Flow Logs** | Registra las conexiones de red de la VPC (origen, destino, puerto, aceptada o rechazada). | Ver las conexiones hacia la subred de datos. |
+| **VPC Reachability Analyzer** | Analiza la configuración de red entre un origen y un destino. | Analizar el camino entre Internet y RDS. |
+| **AWS CloudTrail** | Registra las acciones realizadas en la cuenta de AWS. | Auditar cambios en la cuenta del laboratorio. |
+| **Amazon SNS** | Envía notificaciones (correo, SMS) a los suscriptores de un tema. | Avisar al equipo por correo. |
+| **AWS CloudFormation** | Crea y actualiza la infraestructura a partir de una plantilla (YAML). | La plantilla que crea toda la infraestructura de URPOnline. |
+| **AWS SDK** | Librerías para que una aplicación use servicios de AWS desde su código. | La tienda en C# lee secretos y publica métricas. |
+| **AWS Cost Explorer, AWS Budgets y Cost Anomaly Detection** | Ver el gasto por servicio, avisar al pasar un monto y detectar gastos inusuales. | Controlar el costo del laboratorio. |
+
+#### Siglas y términos
+
+| Sigla o término | Qué significa | Ejemplo en URPOnline |
+|---|---|---|
+| **AZ (zona de disponibilidad)** | Centro de datos independiente dentro de una región de AWS. | AZ-a y AZ-b en Ohio (us-east-2). |
+| **10.0.0.0/16 (CIDR)** | Notación de un rango de direcciones IP. | Rango de la VPC; 10.0.11.0/24 es una subred de aplicación. |
+| **0.0.0.0/0** | Ruta por defecto: todas las direcciones IPv4. | Ruta de salida de la subred de aplicación. |
+| **Subred pública / privada** | Una tiene ruta al Internet Gateway; la otra no. | El ALB está en una pública; las EC2, en una privada. |
+| **IP pública / privada** | Dirección alcanzable desde Internet / solo dentro de la VPC. | Las EC2 de URPOnline solo tienen IP privada. |
+| **SG (Security Group)** | Firewall que se asocia a un recurso (EC2, RDS, ALB). | El SG de RDS controla quién llega al puerto 5432. |
+| **NACL** | Lista de control de acceso de red, asociada a una subred. | La NACL de la subred de datos. |
+| **Stateful / stateless** | Recuerda las conexiones y deja pasar la respuesta / no las recuerda. | Se usa para comparar SG y NACL. |
+| **Puertos efímeros (1024-65535)** | Puertos temporales que usa el cliente para recibir respuestas. | Puertos de respuesta de una conexión a la base. |
+| **Puertos 80, 443, 5432, 6379, 8080** | HTTP, HTTPS, PostgreSQL, Redis y el puerto interno de la aplicación. | Nginx en 80, RDS en 5432, Redis en 6379, Kestrel en 8080. |
+| **HTTP / HTTPS / TLS** | Protocolo web / web cifrado con TLS (certificado). | La tienda se abre con https:// en CloudFront. |
+| **DNS / CNAME** | Sistema que traduce nombres a direcciones / registro que apunta un nombre a otro. | Registros de Route 53. |
+| **Nginx / proxy inverso** | Servidor que recibe las peticiones y las reenvía a la aplicación. | Nginx en el 80 reenvía a 127.0.0.1:8080. |
+| **Kestrel / ASP.NET Core / .NET 8** | Servidor web de .NET / framework web / plataforma de la aplicación. | La tienda URPOnline. |
+| **127.0.0.1** | Dirección de la propia máquina (solo accesible desde dentro). | Kestrel escucha en 127.0.0.1:8080. |
+| **Health check / healthy / unhealthy** | Prueba periódica de salud de una instancia / sana / no sana. | El Target Group revisa la ruta /health. |
+| **502 Bad Gateway** | Error HTTP: el proxy no pudo comunicarse con el servidor de atrás. | Error que devuelve Nginx. |
+| **Sticky sessions** | El balanceador envía a un cliente siempre a la misma instancia. | Opción del ALB. |
+| **Sesión / cookie** | Datos de la visita de un cliente / dato que el navegador guarda y envía al sitio. | La sesión guarda el carrito. |
+| **Caché / TTL / Cache-Aside** | Copia rápida de datos / tiempo de vida de una entrada / patrón de uso de la caché por la aplicación. | Precios guardados en Redis. |
+| **Transacción / actualización atómica** | Operación que se hace completa o no se hace / sin interferencia de otra a la vez. | Descontar el stock al confirmar un pedido. |
+| **Idempotencia** | Repetir una operación da el mismo resultado que hacerla una vez. | Un doble clic en «Confirmar pedido». |
+| **Multi-AZ / failover** | Copia en otra zona / cambio automático a la copia si falla la principal. | Opción de RDS. |
+| **PITR (point-in-time recovery)** | Restaurar la base a un momento exacto dentro del período de retención. | Recuperar la base a un minuto anterior. |
+| **pgvector** | Extensión de PostgreSQL para guardar vectores y buscar los más parecidos. | Búsqueda semántica del catálogo de URPOnline. |
+| **Vector (embedding)** | Lista de números que representa el significado de un texto. | Cada producto tiene un vector de 384 números. |
+| **Búsqueda semántica** | Buscar por significado y no por palabras exactas. | «Algo para escuchar música» encuentra los audífonos. |
+| **HNSW** | Tipo de índice de pgvector para encontrar vecinos cercanos. | Índice de la tabla de vectores de los productos. |
+| **<=> (distancia coseno)** | Operador de pgvector que mide qué tan distintos son dos vectores (similitud = 1 − distancia). | Ordenar los productos del más al menos parecido. |
+| **Percentil P95 / P99** | Valor bajo el cual queda el 95 % / 99 % de las mediciones. | Latencia del ALB en el dashboard. |
+| **IaC (infraestructura como código)** | Describir la infraestructura en archivos versionados. | La plantilla de CloudFormation. |
+| **YAML** | Formato de texto para describir configuraciones. | La plantilla de CloudFormation está en YAML. |
+| **User Data / cloud-init** | Script que corre al arrancar una EC2 / herramienta que lo ejecuta y deja su log. | /var/log/cloud-init-output.log. |
+| **cfn-signal** | Aviso de la EC2 a CloudFormation de que arrancó bien o mal. | Confirma que /health responde. |
+| **Rolling update** | Reemplazar las instancias de a poco, sin detener el servicio. | Publicar una versión nueva. |
+| **ArtifactKey** | Parámetro de la plantilla con la ubicación del ZIP de la versión en S3. | releases/urponline-v1.zip. |
+| **IAM role / Access Key** | Permisos temporales que asume un recurso / clave permanente de un usuario. | Las EC2 usan un rol, no Access Keys. |
+| **OIDC (OpenID Connect)** | Estándar para demostrar identidad sin compartir contraseñas. | GitHub Actions entra a AWS sin claves. |
+| **GitHub Actions** | Servicio de GitHub que ejecuta tareas automáticas (compilar, desplegar). | Despliega la tienda en AWS. |
+| **Root (usuario raíz)** | Usuario dueño de la cuenta de AWS, con todos los permisos. | Nunca se usan sus claves. |
+| **dnf** | Gestor de paquetes de Amazon Linux. | Instalar parches en las EC2. |
+| **PutMetricData / namespace** | Llamada del SDK para publicar una métrica / grupo de métricas. | Métricas de pedidos en el namespace URPOnline. |
+| **PgBouncer** | Administrador de conexiones (pool) entre la aplicación y PostgreSQL: muchas conexiones de la aplicación comparten pocas conexiones reales. | Evita que RDS rechace conexiones cuando Auto Scaling agrega EC2. |
+| **Snapshot** | Copia de un disco o de una base en un momento. | Snapshot final de RDS al borrar la pila. |
+
+#### Otros términos que aparecen en los casos
+
+| Término | Qué significa | Ejemplo en URPOnline |
+|---|---|---|
+| **Región / zona de disponibilidad** | Región: zona geográfica de AWS con varios centros de datos; zona de disponibilidad (AZ): centro de datos independiente dentro de la región. | URPOnline corre en la región Ohio (us-east-2), con una EC2 en AZ-a y otra en AZ-b. |
+| **Sistema operativo / parche** | Software base de la EC2 (Amazon Linux) / actualización que corrige un error o una vulnerabilidad. | Instalar un parche crítico con dnf en las dos EC2. |
+| **Escuchar en un puerto: 127.0.0.1 frente a 0.0.0.0** | Un programa «escucha» en una dirección y un puerto. 127.0.0.1 solo acepta conexiones de la misma máquina; 0.0.0.0 acepta desde cualquier red. | Kestrel escucha en 127.0.0.1:8080 (solo Nginx le habla); escuchar en 0.0.0.0:8080 y quitar Nginx lo expondría. |
+| **Firma del servidor** | Nombre del programa que generó una respuesta HTTP (encabezado Server o pie de la página de error). | Un «502 Bad Gateway» con la firma de Nginx indica que Nginx responde pero Kestrel no. |
+| **http:// y https://** | Comienzo de una dirección web: http:// viaja sin cifrar; https:// viaja cifrado con TLS y el navegador lo muestra como seguro. | Solo por http:// el navegador marca la tienda como «No seguro». |
+| **Bucket** | Contenedor de archivos (objetos) en Amazon S3; se le aplican políticas y versionado. | El bucket de artefactos guarda releases/urponline-v1.zip. |
+| **ZIP de la versión (artefacto)** | Archivo comprimido con la aplicación compilada; su ubicación en S3 se pasa a la plantilla. | ArtifactKey = releases/urponline-v1.zip. |
+| **Rama main / push** | Rama principal del repositorio en GitHub / enviar los commits locales al repositorio remoto. | Un push a main dispara el despliegue en GitHub Actions. |
+| **Política (de seguridad / de IAM)** | Regla que dice qué está permitido: como norma de la empresa, o como documento de IAM que da permisos. | La política de seguridad prohíbe abrir puertos de entrada desde Internet. |
+| **Evento (de CloudFormation)** | Registro de cada paso de una pila (creación, actualización, error, reversión) visible en la consola. | El evento de reversión de la actualización del sábado. |
+| **Denegación de servicio (DoS / DDoS)** | Ataque que satura un servicio con peticiones para que deje de atender a los usuarios reales. | AWS Shield protege la tienda contra estos ataques. |
+| **Embedding** | Vector de números que resume el significado de un texto; textos parecidos tienen vectores cercanos. | Cada producto tiene un embedding de 384 números en ProductEmbeddings. |
+| **Modelo de embeddings (paraphrase-multilingual-MiniLM-L12-v2)** | Modelo de lenguaje pequeño (MiniLM, 12 capas) que convierte un texto, en más de 50 idiomas, en un vector de 384 números (embedding). | Corre dentro de cada EC2 con ONNX Runtime, sin API externa: tokeniza, promedia los vectores de los tokens y normaliza. |
+| **Similitud coseno** | 1 − distancia coseno: cuanto más cerca de 1, más parecidos son dos vectores. | La tienda solo sugiere productos con similitud mayor o igual a un mínimo. |
+| **Saturación de conexiones / pool de conexiones** | PostgreSQL admite un máximo de conexiones; si cada EC2 abre las suyas y Auto Scaling agrega instancias, se supera y rechaza nuevas. Un pool reúne muchas conexiones de la aplicación en pocas conexiones reales que se reutilizan. | PgBouncer (puerto 6432) entre las EC2 y RDS (puerto 5432). |
+| **CloudWatch Metrics** | Parte de CloudWatch que guarda métricas numéricas (CPU, solicitudes, pedidos); no registra quién hizo un cambio. | Quién cambió un Security Group se ve en CloudTrail, no en Metrics. |
+| **Base de datos relacional** | Guarda datos en tablas relacionadas y garantiza transacciones. | PostgreSQL en RDS guarda pedidos, stock y pagos. |
+
+
 ## 🚀 Descargar y correr la tienda en tu equipo
 
 Requisitos: **.NET 8 SDK**, **Docker Desktop** abierto y **Git**. Cómo instalarlos: [CONFIGURACION_VSCODE.md](CONFIGURACION_VSCODE.md).
@@ -636,6 +745,76 @@ docker exec urp-postgres psql -U urponline -d urponline -c "SELECT indexname FRO
 ```
 
 Debe listar `20261010184951_Inicial`, `20261010185028_BusquedaVectorialPgvector` y el índice `IX_ProductEmbeddings_Embedding_hnsw`.
+
+#### 📐 Teoría: búsqueda semántica con índice HNSW y distancia coseno
+
+**1. Qué es un índice.** Una estructura adicional que la base de datos mantiene para no recorrer toda la tabla en cada búsqueda, como el índice de un libro. El índice normal de PostgreSQL (**B-tree**) ordena valores y sirve para un valor exacto o su comienzo (`WHERE "Name" = 'Cámara X'`, `LIKE 'Cám%'`). Por eso, con B-tree, el cliente tiene que escribir el nombre **como está guardado**: «tomar fotos» nunca encuentra «Cámara X».
+
+**2. Embedding.** Cada producto se convierte en un **vector de 384 números** que resume su significado (tabla `ProductEmbeddings`, columna `vector(384)`). Lo que el cliente escribe también se convierte en un vector. Textos con significado parecido producen vectores que **apuntan en direcciones parecidas**, aunque no compartan palabras.
+
+**2b. Qué modelo convierte el texto en embedding.** La tienda usa **`paraphrase-multilingual-MiniLM-L12-v2`** (de *sentence-transformers*, publicado en Hugging Face):
+
+| | |
+|---|---|
+| Qué es | Un modelo de lenguaje **pequeño** de la familia MiniLM (12 capas, ~118 millones de parámetros), entrenado para que frases con el **mismo significado** —en más de 50 idiomas, incluido el español— produzcan vectores cercanos. |
+| Qué hace | Convierte cada texto (nombre, categoría y descripción del producto, o lo que escribe el cliente) en un vector de 384 números: su embedding. |
+| Dónde corre | **Dentro de cada EC2**, con **ONNX Runtime** (versión cuantizada `model_quint8_avx2.onnx`): no llama a ninguna API externa, no tiene costo por consulta y el texto del cliente no sale del servidor. |
+| Cómo se instala | `scripts/descargar-modelo.ps1` lo descarga en `ml-models/` desde una versión fijada y verifica su **SHA-256**; `dotnet publish` lo incluye en el ZIP que va a S3. |
+
+Pasos en `Services/EmbeddingService.cs`:
+
+1. **Tokenizar** el texto con SentencePiece (como máximo 128 tokens).
+2. El modelo devuelve **un vector de 384 por cada token**.
+3. **Promediarlos** (*mean pooling*) para obtener un solo vector de 384 para todo el texto.
+4. **Normalizar** el vector a longitud 1 (L2). Así, la similitud coseno es simplemente el producto punto.
+5. Guardar el vector en `ProductEmbeddings` (al cargar productos) o compararlo con `<=>` (al buscar).
+
+**3. Distancia coseno: la métrica que gradúa la proximidad.** Compara la **dirección** de dos vectores, no su tamaño:
+
+```
+similitud coseno = cos θ = (A · B) / (|A| × |B|)        → 1 = misma dirección, 0 = sin relación, −1 = opuestos
+distancia coseno  = 1 − similitud                        → 0 = mismo significado, 1 = sin relación, 2 = opuestos
+```
+
+Ejemplo con vectores de 2 números (los reales tienen 384): A = (1, 0), B = (0.9, 0.1), C = (0, 1).
+A y B casi apuntan igual → distancia ≈ 0.006 (muy parecidos); A y C forman 90° → distancia = 1 (sin relación).
+En pgvector la distancia coseno es el operador **`<=>`**: se ordena de menor a mayor para obtener primero los más cercanos, y un **umbral** decide qué tan cerca debe estar un producto para mostrarlo.
+
+**4. Índice HNSW: cómo encuentra rápido a los más cercanos.** Sin índice, la búsqueda compara el vector de la consulta contra **todos** los productos. **HNSW** (*Hierarchical Navigable Small World*) arma un **grafo por capas**:
+
+- Cada producto es un nodo conectado con sus vecinos más parecidos.
+- La capa de arriba tiene pocos nodos con enlaces «largos» (como autopistas); cada capa de abajo tiene más nodos y enlaces más cortos; la capa 0 los tiene a todos.
+- Para buscar, entra por arriba, salta siempre al vecino más cercano a la consulta, baja de capa y repite, hasta llegar a los **vecinos más cercanos** en pocos pasos.
+- Es **aproximado**: puede omitir algún vecino muy cercano, a cambio de responder en milisegundos aunque haya millones de vectores.
+
+Por eso la tienda puede **sugerir productos mientras el cliente escribe**, sin que termine el nombre completo. El índice se crea con `vector_cosine_ops` para que acelere justamente las consultas ordenadas por `<=>`:
+
+```sql
+-- Migración BusquedaVectorialPgvector
+CREATE INDEX "IX_ProductEmbeddings_Embedding_hnsw"
+    ON "ProductEmbeddings" USING hnsw ("Embedding" vector_cosine_ops);
+
+-- Services/ProductVectorStore.cs
+SELECT "ProductId", 1 - ("Embedding" <=> @q::vector) AS similarity   -- similitud = 1 − distancia coseno
+FROM "ProductEmbeddings"
+WHERE NOT ("ProductId" = ANY(@exclude)) AND 1 - ("Embedding" <=> @q::vector) >= @min   -- umbral de proximidad
+ORDER BY "Embedding" <=> @q::vector                                                    -- los más cercanos primero (usa HNSW)
+LIMIT @limit;
+```
+
+Subir `@min` exige más similitud: aparecen **menos** productos, pero **más cercanos** a lo buscado; bajarlo muestra más, pero menos relacionados.
+
+#### 🔌 Teoría: PgBouncer y la saturación de conexiones
+
+- **El problema.** PostgreSQL crea **un proceso por cada conexión** y admite un **máximo** de conexiones a la vez (`max_connections`, que en RDS depende del tamaño de la instancia). Cada EC2 abre su propio grupo de conexiones; cuando Auto Scaling agrega instancias, la suma crece (8 EC2 × 20 conexiones = 160) y, al pasar el máximo, PostgreSQL **rechaza las nuevas** (`too many clients`) aunque su CPU esté baja. Eso es **saturación de conexiones**.
+- **La solución: un pool de conexiones.** **PgBouncer** se ubica entre las EC2 y RDS. La aplicación se conecta a PgBouncer (**puerto 6432**) y PgBouncer mantiene **pocas conexiones reales** a PostgreSQL (**puerto 5432**), que presta a cada consulta y recupera al terminar. Muchas conexiones de la aplicación comparten un grupo pequeño de conexiones reales.
+- **Lo que NO hace.** No guarda datos (la sesión y el carrito van en **Redis**; pedidos, stock y pagos en **PostgreSQL**), no reemplaza a Secrets Manager y no replica la base (eso es **Multi-AZ**).
+- **En URPOnline.** La plantilla base conecta la aplicación **directo a RDS por 5432**. PgBouncer es un **componente objetivo, todavía no desplegado**: la topología avanzada usa 6432. No apuntes la cadena de conexión a 6432 mientras PgBouncer no exista.
+
+```
+Topología base:      EC2 (app) ──5432──► RDS PostgreSQL
+Topología avanzada:  EC2 (app) ──6432──► PgBouncer (pool) ──5432──► RDS PostgreSQL
+```
 
 | Qué probar | Dónde |
 |---|---|
