@@ -577,6 +577,57 @@ aws cloudwatch get-metric-statistics --namespace URPOnline --metric-name OrdersC
 
 ---
 
+## 🧰 dnf: cómo cada EC2 instala sus programas (y en qué se diferencia de SSH)
+
+**dnf** es el **gestor de paquetes de Amazon Linux**, el sistema operativo de las EC2. Funciona como una tienda de aplicaciones del servidor: descarga los programas desde los repositorios de Amazon Linux en Internet, instala también lo que cada uno necesita (sus dependencias), comprueba que vengan firmados y los deja listos.
+
+### Dónde lo usa el laboratorio
+
+Nadie lo escribe a mano: lo ejecuta el **User Data** del Launch Template cada vez que Auto Scaling crea una EC2 (`infra/urponline-oneclick.yaml`):
+
+```bash
+dnf install -y aws-cfn-bootstrap
+dnf install -y nginx unzip amazon-cloudwatch-agent aspnetcore-runtime-8.0
+```
+
+| Paquete | Para qué lo necesita la tienda |
+|---|---|
+| `aws-cfn-bootstrap` | Trae **cfn-signal**: la EC2 avisa a CloudFormation si arrancó bien o mal |
+| `nginx` | El **proxy inverso** del puerto 80, que reenvía a Kestrel en 127.0.0.1:8080 |
+| `unzip` | Descomprime el **ZIP de la versión** que se descarga de S3 (ArtifactKey) |
+| `amazon-cloudwatch-agent` | Envía los **logs y métricas** de la EC2 a CloudWatch |
+| `aspnetcore-runtime-8.0` | El **runtime de .NET 8** que ejecuta la aplicación |
+
+`-y` responde «sí» automáticamente, porque el User Data corre sin nadie frente a la pantalla.
+
+### Por qué dnf necesita el NAT Gateway
+
+Las EC2 están en la subred de aplicación **sin IP pública**. dnf **inicia** la conexión hacia los repositorios (**salida**, HTTPS 443): el tráfico sigue la ruta `0.0.0.0/0` de la subred hacia el **NAT Gateway de su zona**, que lo saca a Internet por el IGW, y la respuesta vuelve por el mismo camino. Desde Internet nadie puede iniciar una conexión hacia la EC2 a través del NAT.
+
+Si la instalación falla, Nginx o .NET no quedan instalados y la EC2 no puede atender: CloudFormation no recibe la señal de éxito (**cfn-signal**) y **revierte** la actualización.
+
+Para verlo (opcional), entra a una EC2 por **Session Manager**:
+
+```bash
+sudo grep -i "dnf\|Installed\|Complete" /var/log/cloud-init-output.log | head -20   # lo que instaló el User Data
+dnf list installed nginx aspnetcore-runtime-8.0                                    # paquetes instalados y su versión
+```
+
+### dnf frente a SSH
+
+Son cosas distintas: **dnf instala programas** en la EC2; **SSH es una forma de entrar** a la EC2 para administrarla.
+
+| | **dnf** | **SSH** |
+|---|---|---|
+| Qué es | Gestor de paquetes de Amazon Linux | Protocolo de terminal remota cifrada (*Secure Shell*) |
+| Para qué sirve | Instalar y actualizar programas (Nginx, .NET, parches) | Abrir una terminal en otra máquina para administrarla |
+| Dirección de la conexión | **Saliente**: la EC2 se conecta a los repositorios | **Entrante**: alguien desde fuera se conecta a la EC2 |
+| Puerto | Sale por **443** (HTTPS) hacia Internet | La EC2 debe tener **abierto el 22** |
+| Qué necesita | Ruta de salida (**NAT Gateway**); ninguna regla de entrada en el Security Group | IP alcanzable, regla de **entrada 22** en el Security Group y una **llave privada** |
+| En URPOnline | Lo ejecuta el **User Data** al arrancar cada EC2 | **No se usa**: se usa **Session Manager** sin puertos de entrada |
+
+> Session Manager también funciona por **salida**: el agente SSM de la EC2 se conecta a AWS, y por eso no hace falta abrir el 22. Sin IP pública ni puerto 22, SSH ni siquiera podría llegar a las EC2 del laboratorio; dnf sí funciona porque no necesita que nadie entre: es la EC2 la que sale.
+
 ## 📚 Glosario: servicios, siglas y términos del laboratorio
 
 Las mismas definiciones del balotario y del examen. Si un término no está aquí, está en la explicación de alguna de las 50 preguntas del balotario.
