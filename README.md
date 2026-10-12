@@ -20,24 +20,25 @@
 
 ---
 
-# 📦 PRIMERO: CREA TU PROPIO REPOSITORIO. TRABAJA SOLO EN ÉL
+# 🧑‍🤝‍🧑 PRIMERO: CREA EL REPOSITORIO DE TU GRUPO. TRABAJA SOLO EN ÉL
 
-Cada grupo clona este laboratorio y lo sube a **su propio repositorio público**. Ahí trabajan, ahí corren **sus** GitHub Actions contra **su** cuenta de AWS, y ese repositorio es el que se evalúa.
+Este repositorio del curso es **solo de lectura**: aquí no puedes subir cambios ni desplegar. Cada grupo crea **su propio repositorio**, sube ahí una copia del laboratorio y trabaja solo en él: ahí corren **sus** GitHub Actions contra **su** cuenta de AWS, y ese repositorio es el que se evalúa.
 
-1. Acepta la invitación que te llegó al correo de la universidad (o entra a https://github.com/orgs/cortexgovernor/invitation).
-2. En GitHub crea un repositorio **nuevo, público y vacío** en tu cuenta: **+ → New repository** → nombre `tiendaonline` → **Public** → deja las demás opciones como vienen → **Create repository**.
-3. En tu PC (la primera vez Git abre el navegador para iniciar sesión):
+1. Acepta la invitación que te llegó al correo de la universidad (o entra a https://github.com/orgs/cortexgovernor/invitation): sin ella no puedes clonar el laboratorio.
+2. **Un integrante crea el repositorio del grupo:** en GitHub, **+ → New repository** → *Owner*: su cuenta → *Repository name*: `tiendaonline-grupoN` (N = número del grupo) → **Private** → **sin** README, `.gitignore` ni licencia → **Create repository**.
+3. **Ese integrante clona el laboratorio del curso y lo sube al repositorio del grupo** (terminal de VS Code):
    ```bash
-   git clone https://github.com/cortexgovernor/tiendaonline.git
-   cd tiendaonline
-   git remote rename origin profesor
-   git remote add origin https://github.com/TU_USUARIO/tiendaonline.git
+   git clone --branch main https://github.com/cortexgovernor/tiendaonline.git tiendaonline-grupoN
+   cd tiendaonline-grupoN
+   git branch -M main                       # la fase queda como rama main del grupo
+   git remote rename origin curso           # el repositorio del curso queda como "curso" (solo para leer)
+   git remote add origin https://github.com/TU_USUARIO/tiendaonline-grupoN.git
    git push -u origin main
    ```
-4. Desde ahora usa **tu** repositorio: `https://github.com/TU_USUARIO/tiendaonline`. Ahí configuras los secretos, activas Actions y haces todos los cambios.
+4. **Agrega a los demás integrantes y al profesor** como colaboradores (**Settings → Collaborators → Add people**). Cada integrante lo clona: `git clone https://github.com/TU_USUARIO/tiendaonline-grupoN.git`.
+5. El enlace de **ese** repositorio es el que se entrega al profesor.
 
-> Un integrante del grupo crea el repositorio y agrega a los demás como colaboradores (**Settings → Collaborators → Add people**). El enlace de ese repositorio es el que se entrega con el video.
-> Si el profesor publica cambios, los traes con `git pull profesor main` y los subes con `git push`.
+> Si el curso publica una corrección de la fase: `git pull curso main` y luego `git push`.
 
 ---
 
@@ -191,28 +192,30 @@ Ya está en `infra/urponline-oneclick.yaml` (recurso **`CDN`**): no hay que hace
 
 **CloudShell** es una terminal dentro de la consola de AWS que ya trae la AWS CLI conectada a tu cuenta.
 
-> Los comandos clonan **tu** repositorio público (el que creaste arriba). Cambia `TU_USUARIO` por tu usuario de GitHub.
+> El repositorio del grupo es **privado**: CloudShell no puede clonarlo solo (no tiene tu sesión de GitHub). Por eso los dos archivos se descargan primero en tu navegador, donde sí iniciaste sesión, y se suben a CloudShell. No uses tokens ni contraseñas de GitHub en CloudShell.
 
-1. **En tu navegador, con tu cuenta de GitHub iniciada**, descarga el ZIP compilado de la tienda: [Releases v1.0](https://github.com/cortexgovernor/tiendaonline/releases/tag/v1.0) → **`urponline-publish.zip`**.
+1. **En tu navegador, con tu cuenta de GitHub iniciada**, descarga estos dos archivos a tu PC:
+   - El ZIP compilado de la tienda: [Releases v1.0](https://github.com/cortexgovernor/tiendaonline/releases/tag/v1.0) → **`urponline-publish.zip`**.
+   - La plantilla, desde el repositorio de **tu grupo**: `infra/urponline-oneclick.yaml` → botón **Download raw file**.
 2. Consola de AWS → arriba a la derecha elige la región **Ohio (us-east-2)**.
 3. Haz clic en el icono **`>_`** de la barra superior (o busca **CloudShell**).
-4. En CloudShell: **Acciones → Cargar archivo** → sube `urponline-publish.zip`. Queda en tu carpeta de inicio (`~`).
+4. En CloudShell: **Acciones → Cargar archivo** → sube `urponline-publish.zip`. Repite con `urponline-oneclick.yaml`. Quedan en tu carpeta de inicio (`~`).
 5. Pega este bloque y presiona **Enter**:
 
 ```bash
-cd ~ && rm -rf tiendaonline && git clone https://github.com/TU_USUARIO/tiendaonline.git && mv urponline-publish.zip tiendaonline/ && cd tiendaonline
+cd ~ && ls urponline-publish.zip urponline-oneclick.yaml
 REGION=us-east-2; STACK=URPOnlineLab
 ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 BUCKET=urponline-artefactos-$ACCOUNT-$REGION
 DBPASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 20); echo "$DBPASS" > ~/urponline-dbpass.txt
 aws s3 mb s3://$BUCKET --region $REGION; aws s3 cp urponline-publish.zip s3://$BUCKET/releases/urponline-v1.zip
-aws cloudformation deploy --stack-name $STACK --region $REGION --template-file infra/urponline-oneclick.yaml --capabilities CAPABILITY_IAM --parameter-overrides ArtifactBucket=$BUCKET ArtifactKey=releases/urponline-v1.zip DBPassword=$DBPASS EnableMultiAZ=false
+aws cloudformation deploy --stack-name $STACK --region $REGION --template-file urponline-oneclick.yaml --capabilities CAPABILITY_IAM --parameter-overrides ArtifactBucket=$BUCKET ArtifactKey=releases/urponline-v1.zip DBPassword=$DBPASS EnableMultiAZ=false
 aws cloudformation describe-stacks --stack-name $STACK --region $REGION --query "Stacks[0].Outputs" --output table
 ```
 
 | Línea | Qué hace |
 |---|---|
-| `git clone ...` | Descarga tu repositorio (incluye el YAML `infra/urponline-oneclick.yaml`) y mueve ahí el ZIP que subiste |
+| `ls ...` | Comprueba que los dos archivos se subieron (si dice *No such file*, repite el paso 4) |
 | `ACCOUNT=` / `BUCKET=` | Arma un nombre de bucket único con tu número de cuenta |
 | `DBPASS=` | Genera la contraseña de RDS y la guarda en `~/urponline-dbpass.txt` |
 | `aws s3 mb` / `aws s3 cp` | Crea el bucket y sube el ZIP (las EC2 lo descargan al arrancar) |
@@ -324,34 +327,34 @@ Es el servicio de GitHub que ejecuta esos pasos. Las instrucciones viven en arch
 
 #### ¿Cómo entra GitHub a tu cuenta de AWS? (OIDC, sin Access Keys)
 
-GitHub necesita permiso para crear recursos en **tu** cuenta. En lugar de guardar tu Access Key en GitHub (peligroso si se filtra), se usa **OIDC**: creas en AWS un **rol IAM** que dice *"confío en GitHub, pero solo en la rama `main` del repositorio `TU_USUARIO/tiendaonline`"*. En cada ejecución GitHub pide a AWS credenciales **temporales** (duran minutos) para ese rol. Ese rol lo crea la plantilla [`infra/github-oidc.yaml`](infra/github-oidc.yaml).
+GitHub necesita permiso para crear recursos en **tu** cuenta. En lugar de guardar tu Access Key en GitHub (peligroso si se filtra), se usa **OIDC**: creas en AWS un **rol IAM** que dice *"confío en GitHub, pero solo en la rama `main` del repositorio `TU_USUARIO/tiendaonline-grupoN`"*. En cada ejecución GitHub pide a AWS credenciales **temporales** (duran minutos) para ese rol. Ese rol lo crea la plantilla [`infra/github-oidc.yaml`](infra/github-oidc.yaml).
 
 #### Configúralo en TU GitHub, paso a paso (una sola vez, ~15 min)
 
-**Paso 1 — Crea tu copia del repositorio (fork).**
-Entra a https://github.com/cortexgovernor/tiendaonline (con tu cuenta de GitHub iniciada) → botón **Fork** (arriba a la derecha) → **Create fork**. Ahora tienes `https://github.com/TU_USUARIO/tiendaonline`: ahí correrán **tus** workflows contra **tu** AWS.
+**Paso 1 — El repositorio del grupo.**
+Es el que crearon al inicio ("Crea el repositorio de tu grupo"): `https://github.com/TU_USUARIO/tiendaonline-grupoN`. Ahí correrán **sus** workflows contra **su** AWS.
 
 **Paso 2 — Crea en AWS el rol para GitHub (OIDC).** Elige una forma:
 
 - **Con la consola de AWS (sin terminal):**
   1. Descarga el archivo [`infra/github-oidc.yaml`](infra/github-oidc.yaml) (botón *Download raw file*).
   2. Consola de AWS (región **Ohio**) → **CloudFormation → Create stack → With new resources** → **Upload a template file** → elige `github-oidc.yaml` → **Next**.
-  3. **Stack name:** `urponline-github-oidc` · **GitHubOwner:** tu usuario de GitHub · **RepoName:** `tiendaonline` → **Next** → **Next**.
+  3. **Stack name:** `urponline-github-oidc` · **GitHubOwner:** tu usuario de GitHub · **RepoName:** `tiendaonline-grupoN` (el nombre de **su** repositorio) → **Next** → **Next**.
   4. Marca *"I acknowledge that AWS CloudFormation might create IAM resources with custom names"* → **Submit**.
   5. Cuando diga `CREATE_COMPLETE` (≈1 min) → pestaña **Outputs** → copia el valor de **`RoleArn`** (`arn:aws:iam::123456789012:role/urponline-github-deploy-tiendaonline`).
 - **Con CloudShell** (icono `>_` en la consola de AWS):
   ```bash
-  git clone https://github.com/TU_USUARIO/tiendaonline.git && cd tiendaonline
+  git clone https://github.com/TU_USUARIO/tiendaonline-grupoN.git && cd tiendaonline-grupoN
   aws cloudformation deploy --stack-name urponline-github-oidc --region us-east-2 \
     --template-file infra/github-oidc.yaml --capabilities CAPABILITY_NAMED_IAM \
-    --parameter-overrides GitHubOwner=TU_USUARIO RepoName=tiendaonline
+    --parameter-overrides GitHubOwner=TU_USUARIO RepoName=tiendaonline-grupoN
   aws cloudformation describe-stacks --stack-name urponline-github-oidc --region us-east-2 \
     --query "Stacks[0].Outputs[0].OutputValue" --output text
   ```
 
 > Si sale *"Provider with url https://token.actions.githubusercontent.com already exists"*: tu cuenta ya tenía la conexión. Repite con el parámetro **CreateOidcProvider = false**.
 
-**Paso 3 — Guarda 2 secretos en tu fork.** Los *secrets* son valores privados que los workflows pueden usar pero que nadie ve (ni en los logs).
+**Paso 3 — Guarda 2 secretos en el repositorio del grupo.** Los *secrets* son valores privados que los workflows pueden usar pero que nadie ve (ni en los logs).
 En GitHub → **tu** repositorio → **Settings** (pestaña de arriba) → menú izquierdo **Secrets and variables → Actions** → botón **New repository secret**. Crea estos dos:
 
 | Name | Secret |
@@ -361,11 +364,11 @@ En GitHub → **tu** repositorio → **Settings** (pestaña de arriba) → menú
 
 (Opcional) Si no usas Ohio: pestaña **Variables** → **New repository variable** → `AWS_REGION` = `us-east-1`.
 
-**Paso 4 — Activa Actions en tu fork.** En los forks GitHub los deja apagados por seguridad: pestaña **Actions** → botón verde *"I understand my workflows, go ahead and enable them"*.
+**Paso 4 — Comprueba que Actions esté activo.** En un repositorio nuevo viene activado: pestaña **Actions** → deben aparecer los 3 workflows. Si dice que están desactivados, pulsa **Enable**.
 
 **Paso 5 — Primer despliegue.** Pestaña **Actions** → en la izquierda **Desplegar en AWS** → botón **Run workflow** → **Run workflow**. Haz clic en la ejecución que aparece para ver cada paso en vivo (≈25 min la primera vez, porque crea toda la infraestructura). Al terminar, abre el **Summary**: muestra la **URL de la tienda** y las EC2 *healthy* detrás del ALB.
 
-**Paso 6 — Comprueba el CI/CD con un cambio real.** En VS Code (con tu fork clonado) cambia un texto, por ejemplo en `Views/Home/Index.cshtml`, y súbelo:
+**Paso 6 — Comprueba el CI/CD con un cambio real.** En VS Code (con el repositorio del grupo clonado) cambia un texto, por ejemplo en `Views/Home/Index.cshtml`, y súbelo:
 
 ```powershell
 git add .
@@ -386,9 +389,11 @@ winget install GitHub.cli
 # Iniciar sesión en GitHub con permiso para workflows (abre el navegador: pega el código que muestra y "Authorize")
 gh auth login --web --scopes workflow
 
-# Paso 1: crear tu fork y clonarlo en la carpeta actual
-gh repo fork cortexgovernor/tiendaonline --clone
-cd tiendaonline
+# Paso 1: clonar el laboratorio y crear con él el repositorio privado del grupo
+git clone --branch main https://github.com/cortexgovernor/tiendaonline.git tiendaonline-grupoN
+cd tiendaonline-grupoN
+git branch -M main && git remote rename origin curso
+gh repo create TU_USUARIO/tiendaonline-grupoN --private --source . --remote origin --push
 code . -r
 
 # Paso 2 (AWS): crear el rol OIDC — mismos comandos de la sección anterior, con GitHubOwner=TU_USUARIO
@@ -397,7 +402,7 @@ code . -r
 gh secret set AWS_ROLE_ARN
 gh secret set DB_PASSWORD
 
-# Paso 4: activar los workflows del fork
+# Paso 4: activar los workflows (en un repositorio nuevo ya lo están; no hace daño)
 gh workflow enable ci.yml
 gh workflow enable deploy-aws.yml
 gh workflow enable destroy-aws.yml
