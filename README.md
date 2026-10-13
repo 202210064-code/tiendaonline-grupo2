@@ -6,6 +6,11 @@
 
 Las 50 preguntas con la explicación de cada respuesta y, al final, las **definiciones** de todos los servicios, siglas y términos que aparecen en el examen. Quien estudia el balotario puede responder el examen.
 
+
+## ➡️ [Descargar el solucionario del examen parcial en PDF](RUTA_DEL_CURSO/01_CASO_Y_ARQUITECTURA/Solucionario_Examen_Parcial_AWS_2026-II.pdf)
+
+Las 20 preguntas del examen con su respuesta, la explicación y figuras de apoyo (las pantallas de AWS son recreaciones didácticas).
+
 ---
 
 ## 📅 Calendario de fases
