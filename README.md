@@ -259,7 +259,7 @@ $BUCKET = "urponline-artefactos-$ACCOUNT-$REGION"
 # 1. Compilar para Linux (las EC2 usan Amazon Linux) e incluir el modelo de búsqueda
 powershell -ExecutionPolicy Bypass -File scripts/descargar-modelo.ps1
 dotnet publish TiendaOnline.csproj -c Release -r linux-x64 --self-contained false -o out
-Compress-Archive -Path out\* -DestinationPath urponline-publish.zip -Force
+tar.exe -a -c -f urponline-publish.zip -C out .   # rutas con «/» (Compress-Archive de PowerShell 5.1 usa «\» y Linux lo marca como error)
 
 # 2. Subir el ZIP a S3 (las EC2 lo descargan al arrancar)
 aws s3 mb "s3://$BUCKET" --region $REGION
@@ -571,6 +571,8 @@ aws cloudwatch get-metric-statistics --namespace URPOnline --metric-name OrdersC
 
 ### Borrar todo (¡obligatorio al terminar!)
 
+> ⏳ **Borrar la pila demora entre 10 y 15 minutos** (RDS y ElastiCache son los que más tardan). Esperen a que termine (estado `DELETE_COMPLETE` o que la pila desaparezca de CloudFormation) antes de dar por terminado el borrado; si la cierran a medias, quedan recursos cobrando.
+
 - **Con GitHub Actions:** pestaña **Actions → Destruir AWS → Run workflow** → escribe `DESTRUIR`.
 - **Con la CLI:**
   ```powershell
@@ -578,6 +580,7 @@ aws cloudwatch get-metric-statistics --namespace URPOnline --metric-name OrdersC
   aws cloudformation wait stack-delete-complete --stack-name URPOnlineLab --region us-east-2
   ```
   Si falla por el bucket de proveedores, vacíalo en la consola (S3 → bucket → **Empty**) y repite.
+  El bucket de **CloudTrail** se conserva al borrar la pila (tiene registros): antes del `delete-stack`, anota su nombre (Output `TrailBucketName`) y al final bórralo con `aws s3 rb s3://NOMBRE --force`.
 - Después: borra el **snapshot final de RDS** (RDS → Snapshots) y el bucket de artefactos (`aws s3 rb s3://$BUCKET --force`). Revisa **Billing** al día siguiente.
 
 ---
