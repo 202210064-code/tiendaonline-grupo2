@@ -156,7 +156,7 @@ La plantilla **no compila C#**: descarga desde S3 un ZIP **ya publicado** que te
 dotnet restore
 dotnet build -c Release            # si falla, corrige antes de seguir
 dotnet publish TiendaOnline.csproj -c Release -o out
-Compress-Archive -Path out\* -DestinationPath urponline-publish.zip -Force
+tar.exe -a -c -f urponline-publish.zip -C out .   # rutas con «/» (Compress-Archive de PowerShell 5.1 usa «\» y Linux lo marca como error)
 ```
 
 En Linux o macOS: `(cd out && zip -r ../urponline-publish.zip .)`
