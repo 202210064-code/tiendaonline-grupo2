@@ -328,7 +328,7 @@ Resources:
             dnf install -y nginx unzip amazon-cloudwatch-agent aspnetcore-runtime-8.0
             mkdir -p /opt/urponline
             aws s3 cp s3://${ArtifactBucket}/${ArtifactKey} /tmp/urp.zip
-            unzip -oq /tmp/urp.zip -d /opt/urponline
+            unzip -oq /tmp/urp.zip -d /opt/urponline || [ $? -eq 1 ]   # 1 = solo advertencia (ZIP hecho en Windows); el test siguiente valida
             test -f /opt/urponline/TiendaOnline.dll
             chown -R nginx:nginx /opt/urponline
             cat >/etc/urponline.env <<'ENV'
