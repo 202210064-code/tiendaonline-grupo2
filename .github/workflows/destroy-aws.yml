@@ -47,8 +47,11 @@ jobs:
 
       - name: Borrar la pila
         run: |
+          TRAIL=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[?OutputKey=='TrailBucketName'].OutputValue" --output text 2>/dev/null || true)
           aws cloudformation delete-stack --stack-name "$STACK_NAME"
           aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
+          # El bucket de CloudTrail se conserva al borrar la pila (DeletionPolicy: Retain): se borra aqui.
+          if [ -n "$TRAIL" ] && [ "$TRAIL" != "None" ]; then aws s3 rb "s3://$TRAIL" --force; fi
           echo "## 🧹 Pila borrada" >> "$GITHUB_STEP_SUMMARY"
           echo "RDS dejó un **snapshot final** (DeletionPolicy: Snapshot) que sigue costando: bórralo en RDS → Snapshots." >> "$GITHUB_STEP_SUMMARY"
           echo "El bucket de artefactos (urponline-artefactos-...) se conserva; bórralo con: aws s3 rb s3://NOMBRE --force" >> "$GITHUB_STEP_SUMMARY"
