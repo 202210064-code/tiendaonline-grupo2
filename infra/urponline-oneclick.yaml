@@ -353,6 +353,7 @@ Resources:
             max_client_conn = 200
             server_tls_sslmode = require
             ignore_startup_parameters = extra_float_digits,options
+            stats_users = urponline
             PGB
             # userlist.txt con la contraseña leída de Secrets Manager (nunca va en la plantilla ni se imprime en el log).
             aws secretsmanager get-secret-value --secret-id ${DbSecret} --region ${AWS::Region} --query SecretString --output text \
@@ -380,6 +381,46 @@ Resources:
             systemctl enable --now pgbouncer
             sleep 2
             systemctl is-active --quiet pgbouncer
+                        # --- 2c: métricas de PgBouncer hacia CloudWatch cada minuto ---
+            dnf install -y postgresql15 || dnf install -y postgresql16 || true
+            aws secretsmanager get-secret-value --secret-id ${DbSecret} --region ${AWS::Region} --query SecretString --output text \
+              | jq -r '"127.0.0.1:6432:pgbouncer:\(.username):\(.password)"' > /etc/pgbouncer-stats.pgpass
+            chmod 600 /etc/pgbouncer-stats.pgpass
+            cat >/usr/local/bin/pgbouncer-metricas.sh <<'PGBM'
+            #!/bin/bash
+            # Publica cl_active, cl_waiting y sv_active de SHOW POOLS en CloudWatch (namespace URPOnline).
+            command -v psql >/dev/null || exit 0
+            export PGPASSFILE=/etc/pgbouncer-stats.pgpass PGSSLMODE=disable
+            POOLS=$(psql --csv -h 127.0.0.1 -p 6432 -U urponline -d pgbouncer -c "SHOW POOLS;") || exit 0
+            # Columnas por nombre: su posición cambia entre versiones.
+            read CL_ACTIVE CL_WAITING SV_ACTIVE < <(echo "$POOLS" | awk -F, 'NR==1{for(i=1;i<=NF;i++)c[$i]=i;next} $1!="pgbouncer"{a+=$c["cl_active"];w+=$c["cl_waiting"];s+=$c["sv_active"]} END{print a+0,w+0,s+0}')
+            TOKEN=$(curl -s -X PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+            ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+            D="Dimensions=[{Name=InstanceId,Value=$ID}]"
+            aws cloudwatch put-metric-data --region ${AWS::Region} --namespace URPOnline --metric-data \
+              "MetricName=cl_active,Value=$CL_ACTIVE,Unit=Count,$D" \
+              "MetricName=cl_waiting,Value=$CL_WAITING,Unit=Count,$D" \
+              "MetricName=sv_active,Value=$SV_ACTIVE,Unit=Count,$D"
+            PGBM
+            chmod 755 /usr/local/bin/pgbouncer-metricas.sh
+            cat >/etc/systemd/system/pgbouncer-metricas.service <<'PGBMSVC'
+            [Unit]
+            Description=Publica metricas de PgBouncer en CloudWatch
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/local/bin/pgbouncer-metricas.sh
+            PGBMSVC
+            cat >/etc/systemd/system/pgbouncer-metricas.timer <<'PGBMTMR'
+            [Unit]
+            Description=Metricas de PgBouncer cada minuto
+            [Timer]
+            OnBootSec=60
+            OnUnitActiveSec=60
+            [Install]
+            WantedBy=timers.target
+            PGBMTMR
+            systemctl daemon-reload
+            systemctl enable --now pgbouncer-metricas.timer
             cat >/etc/urponline.env <<'ENV'
             ASPNETCORE_ENVIRONMENT=Production
             ASPNETCORE_URLS=http://127.0.0.1:8080
