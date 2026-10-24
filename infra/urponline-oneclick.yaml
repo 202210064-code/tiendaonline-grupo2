@@ -195,6 +195,14 @@ Resources:
       Name: !Sub '${AWS::StackName}/rds-postgres'
       Description: Credenciales de RDS PostgreSQL de URPOnline (las lee la app con el AWS SDK)
       SecretString: !Sub '{"username":"urponline","password":"${DBPassword}"}'
+  # Token de PRUEBA de Mercado Pago (3c). Se crea SIN valor: el token nunca va en la plantilla ni en GitHub.
+  # El valor se carga una sola vez fuera del repositorio (aws secretsmanager put-secret-value) y los
+  # despliegues posteriores no lo tocan porque aquí no se define SecretString.
+  MercadoPagoSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${AWS::StackName}/mercadopago-token'
+      Description: Token de acceso de PRUEBA de Mercado Pago (la app lo lee con el AWS SDK; el valor no esta en el repositorio)
   RedisSubnet:
     Type: AWS::ElastiCache::SubnetGroup
     Properties: {Description: URPOnline data subnets,SubnetIds: [!Ref DataA,!Ref DataB]}
@@ -233,6 +241,13 @@ Resources:
               - Effect: Allow
                 Action: ['secretsmanager:GetSecretValue']
                 Resource: !Ref DbSecret
+        - PolicyName: LeerTokenMercadoPago
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ['secretsmanager:GetSecretValue']
+                Resource: !Ref MercadoPagoSecret
   # VPC Flow Logs: registra el tráfico aceptado y rechazado de toda la VPC en CloudWatch Logs.
   FlowLogGroup:
     Type: AWS::Logs::LogGroup
@@ -430,6 +445,8 @@ Resources:
             ConnectionStrings__PostgresMigrations=Host=${Postgres.Endpoint.Address};Port=5432;Database=urponline;Username=urponline;SSL Mode=Require;Trust Server Certificate=true
             # Sin contraseña: la app la pide a Secrets Manager con el AWS SDK.
             Database__SecretArn=${DbSecret}
+            # Token de prueba de Mercado Pago: solo el ARN; la app lo lee de Secrets Manager con el AWS SDK.
+            MercadoPago__SecretArn=${MercadoPagoSecret}
             ConnectionStrings__Redis=${Redis.PrimaryEndPoint.Address}:6379,ssl=true,abortConnect=false
             # Aplica las migraciones EF Core (tablas + pgvector + índice HNSW) al arrancar; un bloqueo en PostgreSQL evita que 2 EC2 migren a la vez.
             InitializeDatabase=true
@@ -584,6 +601,7 @@ Outputs:
   S3SupplierBucket: {Value: !Ref SupplierBucket}
   VpcId: {Value: !Ref VPC}
   DbSecretArn: {Description: Secreto de RDS en Secrets Manager, Value: !Ref DbSecret}
+  MercadoPagoSecretArn: {Description: Secreto con el token de PRUEBA de Mercado Pago (sin valor en la plantilla), Value: !Ref MercadoPagoSecret}
   S3EndpointId: {Description: VPC endpoint de S3 (Gateway), Value: !Ref S3Endpoint}
   DataNaclId: {Description: NACL de la subred de datos, Value: !Ref DataNacl}
   TargetGroupArn: {Value: !Ref TG}
