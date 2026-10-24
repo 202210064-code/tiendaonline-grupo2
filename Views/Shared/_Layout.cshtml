@@ -27,6 +27,10 @@
  <a asp-controller="Home" asp-action="Index">☰ Todo</a>
  @foreach(var cat in categories){<a asp-controller="Home" asp-action="Index" asp-route-category="@cat">@cat</a>}
 </nav>
+<!-- BANNER CYBER MONDAY - INDICADOR 1a -->
+<div class="alert alert-warning text-center mb-0 font-weight-bold" style="background-color: #ff9900; color: #111; padding: 10px;">
+    🚀 ¡Cyber Monday 2026 en URPOnline! Envíos gratis y descuentos exclusivos hoy.
+</div>
 <main class="main">@if(TempData["Message"] != null) { <div class="notice">@TempData["Message"]</div> } @RenderBody()</main>
 <footer>
  <a class="back-top" href="#top">Volver arriba</a>
