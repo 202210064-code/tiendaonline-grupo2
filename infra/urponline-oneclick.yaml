@@ -331,10 +331,62 @@ Resources:
             unzip -oq /tmp/urp.zip -d /opt/urponline || [ $? -eq 1 ]   # 1 = solo advertencia (ZIP hecho en Windows); el test siguiente valida
             test -f /opt/urponline/TiendaOnline.dll
             chown -R nginx:nginx /opt/urponline
+            # --- PgBouncer: AL2023 no lo trae en sus repos, se compila (versión fija). Solo 127.0.0.1:6432, modo transaction. ---
+            dnf install -y gcc make libevent-devel openssl-devel c-ares-devel jq tar pkgconf-pkg-config
+            PGB_VER=1.23.1
+            curl -fsSL --retry 5 -o /tmp/pgbouncer.tar.gz https://www.pgbouncer.org/downloads/files/$PGB_VER/pgbouncer-$PGB_VER.tar.gz
+            tar -xzf /tmp/pgbouncer.tar.gz -C /tmp
+            (cd /tmp/pgbouncer-$PGB_VER && ./configure --prefix=/usr/local && make -j2 && make install)
+            id pgbouncer &>/dev/null || useradd -r -s /sbin/nologin pgbouncer
+            mkdir -p /etc/pgbouncer
+            cat >/etc/pgbouncer/pgbouncer.ini <<'PGB'
+            [databases]
+            urponline = host=${Postgres.Endpoint.Address} port=5432 dbname=urponline
+            [pgbouncer]
+            listen_addr = 127.0.0.1
+            listen_port = 6432
+            unix_socket_dir =
+            auth_type = scram-sha-256
+            auth_file = /etc/pgbouncer/userlist.txt
+            pool_mode = transaction
+            default_pool_size = 15
+            max_client_conn = 200
+            server_tls_sslmode = require
+            ignore_startup_parameters = extra_float_digits,options
+            PGB
+            # userlist.txt con la contraseña leída de Secrets Manager (nunca va en la plantilla ni se imprime en el log).
+            aws secretsmanager get-secret-value --secret-id ${DbSecret} --region ${AWS::Region} --query SecretString --output text \
+              | jq -r '"\"\(.username)\" \"\(.password | gsub("\""; "\"\""))\""' > /etc/pgbouncer/userlist.txt
+            chown -R pgbouncer:pgbouncer /etc/pgbouncer
+            chmod 600 /etc/pgbouncer/userlist.txt
+            chmod 640 /etc/pgbouncer/pgbouncer.ini
+            cat >/etc/systemd/system/pgbouncer.service <<'PGBSVC'
+            [Unit]
+            Description=PgBouncer
+            After=network-online.target
+            Wants=network-online.target
+            [Service]
+            User=pgbouncer
+            Group=pgbouncer
+            ExecStart=/usr/local/bin/pgbouncer /etc/pgbouncer/pgbouncer.ini
+            ExecReload=/bin/kill -HUP $MAINPID
+            Restart=always
+            RestartSec=3
+            LimitNOFILE=4096
+            [Install]
+            WantedBy=multi-user.target
+            PGBSVC
+            systemctl daemon-reload
+            systemctl enable --now pgbouncer
+            sleep 2
+            systemctl is-active --quiet pgbouncer
             cat >/etc/urponline.env <<'ENV'
             ASPNETCORE_ENVIRONMENT=Production
             ASPNETCORE_URLS=http://127.0.0.1:8080
-            ConnectionStrings__Postgres=Host=${Postgres.Endpoint.Address};Port=5432;Database=urponline;Username=urponline;SSL Mode=Require;Trust Server Certificate=true
+            # La app habla con PgBouncer local (sin TLS dentro de la propia EC2); PgBouncer abre TLS hacia RDS.
+            ConnectionStrings__Postgres=Host=127.0.0.1;Port=6432;Database=urponline;Username=urponline;SSL Mode=Disable;No Reset On Close=true
+            # Migraciones EF Core: directo a RDS (5432), porque pg_advisory_lock necesita una conexión fija.
+            ConnectionStrings__PostgresMigrations=Host=${Postgres.Endpoint.Address};Port=5432;Database=urponline;Username=urponline;SSL Mode=Require;Trust Server Certificate=true
             # Sin contraseña: la app la pide a Secrets Manager con el AWS SDK.
             Database__SecretArn=${DbSecret}
             ConnectionStrings__Redis=${Redis.PrimaryEndPoint.Address}:6379,ssl=true,abortConnect=false
@@ -349,8 +401,8 @@ Resources:
             cat >/etc/systemd/system/urponline.service <<'SYSTEMD'
             [Unit]
             Description=URPOnline ASP.NET Core
-            After=network-online.target
-            Wants=network-online.target
+            After=network-online.target pgbouncer.service
+            Wants=network-online.target pgbouncer.service
             [Service]
             WorkingDirectory=/opt/urponline
             EnvironmentFile=/etc/urponline.env
@@ -385,8 +437,8 @@ Resources:
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
                 proxy_set_header X-Forwarded-Host $host;
+                  }
               }
-             }
             }
             NGINX
             rm -f /etc/nginx/conf.d/default.conf

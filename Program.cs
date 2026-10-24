@@ -12,6 +12,10 @@ var db=builder.Configuration.GetConnectionString("Postgres")?? throw new Invalid
 // En AWS la contraseña de RDS se lee de Secrets Manager (AWS SDK); en tu PC se usa appsettings.json.
 db=DatabaseSecret.BuildConnectionString(builder.Configuration,db);
 builder.Services.AddDbContext<ShopDbContext>(o=>o.UseNpgsql(db));
+// Migraciones: conexión directa a RDS (5432). pg_advisory_lock necesita una conexión fija, que PgBouncer en modo transaction no garantiza.
+// Si ConnectionStrings:PostgresMigrations no existe (p. ej. en tu PC, sin PgBouncer), se usa la misma cadena de la app.
+var migrationsDb=builder.Configuration.GetConnectionString("PostgresMigrations");
+migrationsDb=string.IsNullOrWhiteSpace(migrationsDb)?db:DatabaseSecret.BuildConnectionString(builder.Configuration,migrationsDb);
 var redis=builder.Configuration.GetConnectionString("Redis");
 if(!string.IsNullOrWhiteSpace(redis)) builder.Services.AddStackExchangeRedisCache(o=>o.Configuration=redis);
 else if(builder.Environment.IsDevelopment()) builder.Services.AddDistributedMemoryCache();
@@ -43,7 +47,8 @@ app.UseStaticFiles();app.UseRouting();app.UseSession();
 app.MapGet("/health",()=>Results.Ok(new{status="ok"}));
 app.MapControllerRoute("default","{controller=Home}/{action=Index}/{id?}");
 if(app.Configuration.GetValue<bool>("InitializeDatabase")){
- using var scope=app.Services.CreateScope();var database=scope.ServiceProvider.GetRequiredService<ShopDbContext>();
+ // Contexto propio con la conexión directa a RDS (5432): el lock, la migración y el seed comparten la misma conexión fija.
+ await using var database=new ShopDbContext(new DbContextOptionsBuilder<ShopDbContext>().UseNpgsql(migrationsDb).Options);
  // Migraciones EF Core versionadas (Data/Migrations): tablas + pgvector + índice HNSW. Luego datos de ejemplo.
  // pg_advisory_lock: si varias EC2 arrancan a la vez, solo una migra; las demás esperan y encuentran todo aplicado.
  await database.Database.OpenConnectionAsync();
