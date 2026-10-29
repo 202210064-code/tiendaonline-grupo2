@@ -9,7 +9,6 @@ var builder=WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
 var db=builder.Configuration.GetConnectionString("Postgres")?? throw new InvalidOperationException("Configure ConnectionStrings:Postgres; apunte a PgBouncer 6432 en AWS.");
-// En AWS la contraseña de RDS se lee de Secrets Manager (AWS SDK); en tu PC se usa appsettings.json.
 db=DatabaseSecret.BuildConnectionString(builder.Configuration,db);
 builder.Services.AddDbContext<ShopDbContext>(o=>o.UseNpgsql(db));
 // Migraciones: conexión directa a RDS (5432). pg_advisory_lock necesita una conexión fija, que PgBouncer en modo transaction no garantiza.
@@ -32,6 +31,9 @@ builder.Services.AddSession(o=>{
 });
 builder.Services.AddScoped<CartService>();builder.Services.AddScoped<BusinessEvents>();
 builder.Services.AddScoped<BusinessMetrics>();
+// ActiveCarts: personas distintas con carrito en los últimos 5 min, contadas en Redis (compartido por las EC2).
+builder.Services.AddSingleton<ActiveCartsTracker>();
+builder.Services.AddHostedService<ActiveCartsPublisher>();
 // Búsqueda semántica: modelo local ONNX + pgvector en PostgreSQL.
 builder.Services.AddSingleton<EmbeddingService>();
 builder.Services.AddScoped<ProductVectorStore>();
