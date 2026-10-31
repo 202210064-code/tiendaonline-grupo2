@@ -568,7 +568,7 @@ Resources:
   CarritosSinVentasAlarmYAML:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: URPOnline-Carritos-Abandonados-Rodrigo-YAML
+      AlarmName: URPOnlineLab-CarritosAbandonados
       AlarmDescription: "20 o mas carritos registrados y cero pedidos durante 15 minutos"
       EvaluationPeriods: 1
       DatapointsToAlarm: 1
