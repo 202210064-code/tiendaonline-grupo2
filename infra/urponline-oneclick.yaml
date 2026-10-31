@@ -635,11 +635,8 @@ Outputs:
   MercadoPagoSecretArn: {Description: Secreto con el token de PRUEBA de Mercado Pago (sin valor en la plantilla), Value: !Ref MercadoPagoSecret}
   S3EndpointId: {Description: VPC endpoint de S3 (Gateway), Value: !Ref S3Endpoint}
   DataNaclId: {Description: NACL de la subred de datos, Value: !Ref DataNacl}
-<<<<<<< Updated upstream
-  TargetGroupArn: {Value: !Ref TG}
-=======
   TargetGroupArn: {Value: !Ref TG}
   DashboardCarritosYAMLURL:
     Description: Acceso al dashboard de carritos administrado por CloudFormation
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards/dashboard/URPOnline-Carritos-Rodrigo-YAML"
->>>>>>> Stashed changes
+  
