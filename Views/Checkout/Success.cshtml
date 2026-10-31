@@ -1,7 +1,42 @@
+@using TiendaOnline.Models
+@{
+ var order = (Order)ViewBag.Order;
+ string result = ViewBag.Result;
+
+ string color, icono, titulo, mensaje;
+ switch (result) {
+  case "PAGADO":
+   color = "#067d00"; icono = "✓"; titulo = "¡Pago aprobado!";
+   mensaje = "Tu pedido #" + order.Id + " fue marcado como PAGADO."; break;
+  case "YA_REGISTRADO":
+   color = "#067d00"; icono = "✓"; titulo = "Este pago ya fue registrado";
+   mensaje = "El pedido #" + order.Id + " ya estaba PAGADO. No se registró nada nuevo."; break;
+  case "RECHAZADO":
+   color = "#b12704"; icono = "✕"; titulo = "Pago rechazado";
+   mensaje = "Tu pago no fue aprobado. El pedido #" + order.Id + " sigue en PENDIENTE_PAGO."; break;
+  case "INVALIDO":
+   color = "#b12704"; icono = "!"; titulo = "No se pudo verificar el pago";
+   mensaje = "Los datos del pago no corresponden a este pedido."; break;
+  case "ERROR_VERIFICACION":
+   color = "#b12704"; icono = "!"; titulo = "No pudimos confirmar tu pago";
+   mensaje = "El pedido #" + order.Id + " sigue en PENDIENTE_PAGO. Intenta recargar en unos minutos."; break;
+  default:
+   color = "#c77700"; icono = "…"; titulo = "Pago pendiente";
+   mensaje = "El pedido #" + order.Id + " sigue en PENDIENTE_PAGO."; break;
+ }
+ string badge = order.Status == "PAGADO" ? "#067d00" : "#c77700";
+}
+
 <div class="panel success">
- <div class="success-icon">✓</div>
- <h1>Pedido registrado, ¡gracias!</h1>
- <p>Tu pedido <b>#@ViewBag.OrderId</b> quedó registrado en PostgreSQL con estado <b>PENDIENTE_PAGO</b>.</p>
+ <div class="success-icon" style="background:@color">@icono</div>
+ <h1 style="color:@color">@titulo</h1>
+ <p>@mensaje</p>
+ <p>Estado del pedido:
+  <b style="background:@badge;color:#fff;padding:3px 12px;border-radius:12px">@order.Status</b>
+ </p>
+ @if (ViewBag.PaymentId != null) {
+  <p>ID de pago de Mercado Pago: <b>@ViewBag.PaymentId</b></p>
+ }
  <p class="hint">Esta aplicación es un laboratorio educativo: no procesa pagos reales.</p>
  <a class="btn-cart inline" asp-controller="Home" asp-action="Index">Seguir comprando</a>
 </div>
