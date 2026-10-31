@@ -638,5 +638,4 @@ Outputs:
   TargetGroupArn: {Value: !Ref TG}
   DashboardCarritosYAMLURL:
     Description: Acceso al dashboard de carritos administrado por CloudFormation
-    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards/dashboard/URPOnline-Carritos-Rodrigo-YAML"
-  
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards/dashboard/URPOnline-URPOnlineLab"
