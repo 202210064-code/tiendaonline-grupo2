@@ -8,8 +8,10 @@ public class Order {
  public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
  public decimal Total { get; set; }
  public string Status { get; set; } = "PENDIENTE_PAGO";
+
  public List<OrderItem> Items { get; set; } = new();
 }
+
 public class OrderItem {
  public int Id { get; set; }
  public int OrderId { get; set; }
