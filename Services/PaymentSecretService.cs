@@ -8,29 +8,52 @@ public class PaymentSecretService(IAmazonSecretsManager secretsManager, IConfigu
 {
     public async Task<string> GetAccessTokenAsync(CancellationToken ct = default)
     {
-        // Si hay una clave fija en appsettings (para desarrollo local), la usa
+        // 1. Si hay una clave fija en appsettings (para desarrollo local), la usa
         var localToken = config["MercadoPago:TestAccessToken"];
-        if (!string.IsNullOrEmpty(localToken))
+        if (!string.IsNullOrWhiteSpace(localToken))
         {
-            return localToken;
+            return localToken.Trim();
         }
 
-        // De lo contrario, lee el secreto desde AWS Secrets Manager (ARN inyectado en /etc/urponline.env)
+        // 2. Lee el ARN/Nombre del secreto desde AWS Secrets Manager
         var secretArn = config["MercadoPago:SecretArn"];
-        if (string.IsNullOrEmpty(secretArn))
+        if (string.IsNullOrWhiteSpace(secretArn))
         {
             return string.Empty;
         }
 
-        var request = new GetSecretValueRequest { SecretId = secretArn };
-        var response = await secretsManager.GetSecretValueAsync(request, ct);
-
-        using var doc = JsonDocument.Parse(response.SecretString);
-        if (doc.RootElement.TryGetProperty("AccessToken", out var tokenElement))
+        try
         {
-            return tokenElement.GetString() ?? string.Empty;
-        }
+            var request = new GetSecretValueRequest { SecretId = secretArn };
+            var response = await secretsManager.GetSecretValueAsync(request, ct);
 
-        return response.SecretString;
+            if (string.IsNullOrWhiteSpace(response.SecretString))
+            {
+                return string.Empty;
+            }
+
+            var rawSecret = response.SecretString.Trim();
+
+            // 3. Si el secreto está guardado como formato JSON válido
+            if (rawSecret.StartsWith("{"))
+            {
+                using var doc = JsonDocument.Parse(rawSecret);
+                if (doc.RootElement.TryGetProperty("AccessToken", out var tokenElement))
+                {
+                    return tokenElement.GetString()?.Trim() ?? string.Empty;
+                }
+                if (doc.RootElement.TryGetProperty("access_token", out var altTokenElement))
+                {
+                    return altTokenElement.GetString()?.Trim() ?? string.Empty;
+                }
+            }
+
+            // 4. Si se guardó como texto plano (ej. APP_USR-xxx... o TEST-xxx...)
+            return rawSecret;
+        }
+        catch
+        {
+            return string.Empty;
+        }
     }
 }
