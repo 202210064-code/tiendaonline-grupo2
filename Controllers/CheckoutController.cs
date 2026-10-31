@@ -118,12 +118,12 @@ public class CheckoutController(
           Email = input.Email
       },
       
-      // URLs a las que regresa el usuario tras el intento de pago en Sandbox
+      // FORZAMOS EL PROTOCOLO HTTPS EN LAS BACKURLS
       BackUrls = new PreferenceBackUrlsRequest
       {
-          Success = $"{Request.Scheme}://{Request.Host}/Checkout/Success?id={order.Id}",
-          Failure = $"{Request.Scheme}://{Request.Host}/Checkout/Success?id={order.Id}",
-          Pending = $"{Request.Scheme}://{Request.Host}/Checkout/Success?id={order.Id}"
+          Success = $"https://{Request.Host}/Checkout/Success?id={order.Id}",
+          Failure = $"https://{Request.Host}/Checkout/Success?id={order.Id}",
+          Pending = $"https://{Request.Host}/Checkout/Success?id={order.Id}"
       },
       AutoReturn = "approved"
   };
